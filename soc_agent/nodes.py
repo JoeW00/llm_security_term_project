@@ -23,9 +23,27 @@ def triage(state: IncidentState) -> dict[str, Any]:
 
 
 def enrich(state: IncidentState) -> dict[str, Any]:
-    """STUB：假裝查詢每個 IOC 的威脅情資。計畫 B 換成真實工具呼叫。"""
-    enrichment = {ioc: {"reputation": "unknown"} for ioc in state.get("iocs", [])}
-    return {"enrichment": enrichment}
+    """STUB：假裝查詢每個 IOC 的威脅情資。計畫 B 換成真實工具呼叫。Stub for nodes.enrich: Extracts IOCs and calls threat intelligence tools."""
+    print("--- NODE: ENRICH ---")
+    
+    # TODO (Week 15): Parse state["alert"] for real IPs/Domains 
+    # and call AbuseIPDB / VirusTotal APIs.
+    
+    # Mocking the extraction and API response for the Week 14 prototype
+    mocked_iocs = ["192.168.1.100", "malicious-domain.com"]
+    mocked_enrichment_data = {
+        "192.168.1.100": {"vendor": "AbuseIPDB", "score": 85, "reports": 12},
+        "malicious-domain.com": {"vendor": "VirusTotal", "positives": 5}
+    }
+    
+    print(f"[*] Extracted IOCs: {mocked_iocs}")
+    print(f"[*] Retrieved Enrichment: {mocked_enrichment_data}")
+    
+    # Return ONLY the keys we are responsible for updating
+    return {
+        "iocs": mocked_iocs,
+        "enrichment": mocked_enrichment_data
+    }
 
 
 def investigate(state: IncidentState) -> dict[str, Any]:
@@ -36,8 +54,23 @@ def investigate(state: IncidentState) -> dict[str, Any]:
 
 
 def attack_mapping(state: IncidentState) -> dict[str, Any]:
-    """STUB：對應 MITRE ATT&CK 技術。計畫 B 換成檢索式對應。"""
-    return {"attack_techniques": ["T1110"]}  # T1110 = Brute Force（佔位）
+    """STUB：對應 MITRE ATT&CK 技術。計畫 B 換成檢索式對應。Stub for nodes.attack_mapping: Maps findings to MITRE ATT&CK."""
+    print("--- NODE: ATT&CK MAPPING ---")
+    
+    # TODO (Week 15): Map the enrichment findings to local STIX/MITRE data.
+    
+    # Mocking the MITRE mapping based on our fake enrichment data
+    mocked_techniques = [
+        "T1078 - Valid Accounts", 
+        "T1059 - Command and Scripting Interpreter"
+    ]
+    
+    print(f"[*] Mapped Techniques: {mocked_techniques}")
+    
+    # Return ONLY the keys we are responsible for updating
+    return {
+        "attack_techniques": mocked_techniques
+    }
 
 
 def playbook(state: IncidentState) -> dict[str, Any]:
@@ -85,3 +118,32 @@ def report(state: IncidentState) -> dict[str, Any]:
             "approved": state.get("approved", False),
         }
     }
+
+#看你們需不需要這部分的給助教看 mockup，不需要的話就 comment 或刪掉謝謝
+if __name__ == "__main__":
+    # Initialize a fake state passed from the previous node (Triage) 
+    print("MOCKUP TEST PREVIEW")
+
+    test_state: IncidentState = {
+        "alert": {"raw_message": "Suspicious login from 192.168.1.100 and connection to malicious-domain.com"},
+        "alert_type": "Credential Access",
+        "severity": "high",
+        "iocs": [],
+        "enrichment": {},
+        "attack_techniques": []
+    }
+    
+    # Run the enrich stub
+    updated_state_1 = enrich(test_state)
+    
+    # Simulate LangGraph merging the state using dictionary updates
+    test_state.update(updated_state_1)
+    
+    # Run the mapping stub
+    updated_state_2 = attack_mapping(test_state)
+    
+    # Simulate LangGraph merging the state again
+    test_state.update(updated_state_2)
+    
+    print("\n--- TEST COMPLETE ---")
+    print("If you see this, your node skeletons are working perfectly with TypedDict.")
