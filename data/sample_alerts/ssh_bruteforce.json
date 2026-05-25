@@ -1,0 +1,9 @@
+{
+  "source": "wazuh",
+  "timestamp": "2026-05-20T03:14:22Z",
+  "category": "authentication",
+  "severity": "high",
+  "message": "sshd: 84 failed login attempts for user root from 203.0.113.45",
+  "indicators": ["203.0.113.45", "root"],
+  "raw": {"rule_id": "5712", "agent": "web-prod-01", "src_port": 41122}
+}

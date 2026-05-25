@@ -1,0 +1,9 @@
+{
+  "source": "wazuh",
+  "timestamp": "2026-05-20T03:15:00Z",
+  "category": "system",
+  "severity": "low",
+  "message": "agent heartbeat received from web-prod-01",
+  "indicators": [],
+  "raw": {"rule_id": "1002", "agent": "web-prod-01"}
+}
