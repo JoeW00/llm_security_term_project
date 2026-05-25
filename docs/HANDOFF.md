@@ -7,7 +7,7 @@
 
 ## 一句話現況
 
-LangGraph 版「自主式 SOC Tier-1 事件回應代理」的**基礎骨架（計畫 0）已完成並合併到 `master`**，25 個測試全綠、CLI 可跑。接下來是把 9 個 stub 節點換成真實實作（計畫 A–D）。
+LangGraph 版「自主式 SOC Tier-1 事件回應代理」的**基礎骨架（計畫 0）已完成並合併到 `main`**，25 個測試全綠、CLI 可跑。接下來是把 9 個 stub 節點換成真實實作（計畫 A–D）。
 
 ---
 
@@ -18,10 +18,10 @@ LangGraph 版「自主式 SOC Tier-1 事件回應代理」的**基礎骨架（�
 | 期末 handout 繁中翻譯 + 必做清單 | ✅ 完成（`docs/`） |
 | 設計 spec（含 Mermaid 流程圖 + PDF） | ✅ 完成 |
 | 計畫 0：基礎骨架實作計畫 | ✅ 完成 |
-| 計畫 0：實作（7 個 task，Subagent 驅動 + 雙重審查） | ✅ 完成、已合併 `master` |
+| 計畫 0：實作（7 個 task，Subagent 驅動 + 雙重審查） | ✅ 完成、已合併 `main` |
 | 計畫 A–D（四個子系統） | ⬜ 尚未開始 |
 
-**git 狀態**：在 `master`，最新是 merge commit `9990126`。功能分支已刪。**尚未設定 git remote**（還沒推上 GitHub）。
+**git 狀態**：在 `main`（原 `master` 已改名），最新是 merge commit `9990126`。功能分支已刪。**尚未設定 git remote**（還沒推上 GitHub）。
 
 ---
 
