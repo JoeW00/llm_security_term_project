@@ -21,7 +21,7 @@ LangGraph 版「自主式 SOC Tier-1 事件回應代理」的**基礎骨架（�
 | 計畫 0：實作（7 個 task，Subagent 驅動 + 雙重審查） | ✅ 完成、已合併 `main` |
 | 計畫 A–D（四個子系統） | ⬜ 尚未開始 |
 
-**git 狀態**：在 `main`（原 `master` 已改名），最新是 merge commit `9990126`。功能分支已刪。**尚未設定 git remote**（還沒推上 GitHub）。
+**git 狀態**：在 `main`（原 `master` 已改名），最新是 merge commit `9990126`。功能分支已刪。**已推上 GitHub（Private）**：`origin` → https://github.com/JoeW00/llm_security_term_project.git，`main` 追蹤 `origin/main`。注意推送需用 `JoeW00` gh 帳號（`gh auth switch --user JoeW00`）。
 
 ---
 
