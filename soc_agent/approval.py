@@ -56,8 +56,10 @@ class InterruptApprovalPolicy:
 
     @staticmethod
     def _to_decision(response: Any) -> ApprovalDecision:
+        # strict=True：只接受真正的 bool，拒絕 "true"/1/"yes" 等寬鬆強制轉換，
+        # 確保安全閘門不因鬆散型別的人工 UI 輸入而誤放行。
         try:
-            return ApprovalDecision.model_validate(response)
+            return ApprovalDecision.model_validate(response, strict=True)
         except (TypeError, ValueError):
             return ApprovalDecision(
                 approved=False, reason="invalid approval response; rejected by default"

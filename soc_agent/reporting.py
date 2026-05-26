@@ -7,8 +7,13 @@ from typing import Any
 
 def render_markdown(report: dict[str, Any]) -> str:
     """把結構化報告 dict 渲染為 Markdown 字串。"""
-    techniques = report.get("attack_techniques") or []
-    playbook = report.get("playbook") or {}
+    # 型別防護：不可信來源可能給非預期型別，避免渲染時崩潰（DoS）。
+    techniques = report.get("attack_techniques")
+    if not isinstance(techniques, list):
+        techniques = []
+    playbook = report.get("playbook")
+    if not isinstance(playbook, dict):
+        playbook = {}
 
     lines = [
         "# SOC 事件回應報告",

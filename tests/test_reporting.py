@@ -33,6 +33,13 @@ def test_render_markdown_handles_missing_fields():
     assert "# " in md
 
 
+def test_render_markdown_tolerates_non_dict_playbook_and_techniques():
+    # 不可信／畸形型別不得讓報告渲染崩潰
+    md = render_markdown({"playbook": "not-a-dict", "attack_techniques": "not-a-list"})
+    assert isinstance(md, str)
+    assert "# " in md
+
+
 def test_report_node_surfaces_rationale_and_markdown():
     out = nodes.report(
         {

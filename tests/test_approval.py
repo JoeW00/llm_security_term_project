@@ -38,6 +38,18 @@ def test_interrupt_policy_rejects_malformed_resume():
     assert "rejected by default" in d.reason
 
 
+def test_interrupt_policy_rejects_missing_approved_key():
+    d = InterruptApprovalPolicy._to_decision({"reason": "only reason"})
+    assert d.approved is False
+
+
+def test_interrupt_policy_rejects_coerced_truthy_approved():
+    # 鬆散型別的 UI 可能送字串/整數；strict 驗證須拒絕、保守駁回，不得誤放行
+    for bad in ({"approved": "true"}, {"approved": 1}, {"approved": "yes"}):
+        d = InterruptApprovalPolicy._to_decision(bad)
+        assert d.approved is False, f"{bad!r} must NOT auto-approve"
+
+
 def test_policies_satisfy_protocol():
     assert isinstance(AutoApprovePolicy(), ApprovalPolicy)
     assert isinstance(InterruptApprovalPolicy(), ApprovalPolicy)
