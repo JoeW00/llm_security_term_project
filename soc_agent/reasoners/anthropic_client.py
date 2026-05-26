@@ -37,4 +37,6 @@ class AnthropicLLMClient:
             )
             return response.content[0].text
         except Exception as exc:  # 網路 / SDK / 空或非文字 content 一律正規化為 LLMClientError
-            raise LLMClientError(str(exc)) from exc
+            # 訊息保持靜態（不回填 SDK 例外字串，避免將來若被記錄/外露時洩漏請求細節）；
+            # `from exc` 仍在 traceback 保留原因供除錯。
+            raise LLMClientError("LLM call failed") from exc
