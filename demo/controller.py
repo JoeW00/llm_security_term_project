@@ -32,9 +32,17 @@ class PendingApproval:
 class IncidentSession:
     """一次互動式事件回應：start 在人工關卡暫停，resume 帶人工決策續跑。"""
 
-    def __init__(self, thread_id: str, *, build: Callable[..., Any] = build_graph) -> None:
+    def __init__(
+        self,
+        thread_id: str,
+        *,
+        build: Callable[..., Any] = build_graph,
+        reasoners: dict[str, Any] | None = None,
+    ) -> None:
         self._graph = build(
-            approval_policy=InterruptApprovalPolicy(), checkpointer=MemorySaver()
+            approval_policy=InterruptApprovalPolicy(),
+            checkpointer=MemorySaver(),
+            **(reasoners or {}),
         )
         self._config = {"configurable": {"thread_id": thread_id}}
 

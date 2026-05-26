@@ -27,6 +27,7 @@ samples = list_sample_alerts()
 sample_names = [p.name for p in samples]
 choice = st.sidebar.selectbox("選擇樣本告警", ["（上傳檔案）", *sample_names])
 uploaded = st.sidebar.file_uploader("或上傳告警 JSON", type="json")
+use_llm = st.sidebar.checkbox("使用 live LLM（需 ANTHROPIC_API_KEY）")
 
 alert: dict | None = None
 if choice != "（上傳檔案）":
@@ -38,7 +39,16 @@ elif uploaded is not None:
         st.sidebar.error(f"JSON 解析失敗：{exc}")
 
 if st.sidebar.button("Run", disabled=alert is None) and alert is not None:
-    session = IncidentSession(thread_id=str(uuid.uuid4()))
+    reasoners = None
+    if use_llm:
+        try:
+            from soc_agent.reasoners.factory import anthropic_llm_client, llm_reasoners
+
+            reasoners = llm_reasoners(anthropic_llm_client())
+        except RuntimeError as exc:
+            st.sidebar.error(str(exc))
+            st.stop()
+    session = IncidentSession(thread_id=str(uuid.uuid4()), reasoners=reasoners)
     st.session_state["pending"] = session.start(alert)
     st.session_state["session"] = session
     st.session_state.pop("final_report", None)

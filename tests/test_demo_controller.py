@@ -5,6 +5,7 @@ from demo.controller import (
     list_sample_alerts,
     load_alert,
 )
+from soc_agent.reasoners.factory import llm_reasoners
 
 HIGH = {
     "source": "wazuh",
@@ -51,3 +52,14 @@ def test_list_and_load_sample_alerts():
     assert len(samples) == 2
     alert = load_alert(samples[0])
     assert "category" in alert
+
+
+class _FakeLLMClient:
+    def complete(self, *, system, prompt):
+        return '{"verdict": "false_positive", "confidence": 0.1, "rationale": "fake-llm"}'
+
+
+def test_incident_session_forwards_injected_reasoners():
+    pending = IncidentSession("t-llm", reasoners=llm_reasoners(_FakeLLMClient())).start(HIGH)
+    assert pending.state["verdict"] == "false_positive"
+    assert "fake-llm" in pending.state["rationale"]
