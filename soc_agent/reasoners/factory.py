@@ -1,0 +1,46 @@
+"""建構 live LLM reasoner 的工廠：從環境取 Anthropic client，包成三個推理器。
+
+`import anthropic` 為延遲匯入（僅在 anthropic_llm_client 內），核心測試無需安裝 anthropic。
+"""
+
+from __future__ import annotations
+
+import os
+from typing import Any
+
+from soc_agent.reasoners.anthropic_client import AnthropicLLMClient
+from soc_agent.reasoners.critic import LLMCritic
+from soc_agent.reasoners.investigator import LLMInvestigator
+from soc_agent.reasoners.playbook import LLMPlaybookGenerator
+from soc_agent.reasoning import LLMClient
+
+_DEFAULT_MODEL = "claude-sonnet-4-6"
+
+
+def anthropic_llm_client(
+    model: str = _DEFAULT_MODEL, *, max_tokens: int = 1024
+) -> AnthropicLLMClient:
+    """從 `ANTHROPIC_API_KEY` 建 Anthropic client 並包成 `AnthropicLLMClient`。
+
+    缺金鑰或未安裝 anthropic 套件時，丟帶清楚訊息的 RuntimeError。
+    """
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        raise RuntimeError(
+            "ANTHROPIC_API_KEY 未設定；live LLM 需要它（export ANTHROPIC_API_KEY=...）。"
+        )
+    try:
+        import anthropic
+    except ImportError as exc:
+        raise RuntimeError(
+            "未安裝 anthropic 套件；請以 `uv run --group llm ...` 執行或安裝 anthropic。"
+        ) from exc
+    return AnthropicLLMClient(anthropic.Anthropic(), model=model, max_tokens=max_tokens)
+
+
+def llm_reasoners(client: LLMClient) -> dict[str, Any]:
+    """把一個 LLMClient 包成三個 LLM reasoner；鍵名對齊 build_graph 參數。"""
+    return {
+        "investigator": LLMInvestigator(client),
+        "playbook_gen": LLMPlaybookGenerator(client),
+        "critic": LLMCritic(client),
+    }

@@ -17,6 +17,7 @@ packages = ["soc_agent"]
 [dependency-groups]
 dev = ["pytest>=8.0", "ruff>=0.6"]
 demo = ["streamlit>=1.30"]
+llm = ["anthropic>=0.40"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
