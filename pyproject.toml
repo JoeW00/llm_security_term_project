@@ -15,7 +15,16 @@ build-backend = "hatchling.build"
 packages = ["soc_agent"]
 
 [dependency-groups]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "ruff>=0.6"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# E/F: pyflakes + pycodestyle, I: import sorting, UP: pyupgrade (keeps the
+# `from __future__ import annotations` style and modern typing consistent).
+select = ["E", "F", "I", "UP"]

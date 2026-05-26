@@ -1,8 +1,13 @@
 from soc_agent import nodes
 
 SAMPLE = {
-    "source": "wazuh", "timestamp": "t", "category": "authentication",
-    "severity": "high", "message": "m", "indicators": ["203.0.113.45"], "raw": {},
+    "source": "wazuh",
+    "timestamp": "t",
+    "category": "authentication",
+    "severity": "high",
+    "message": "m",
+    "indicators": ["203.0.113.45"],
+    "raw": {},
 }
 
 
@@ -52,10 +57,15 @@ def test_human_approval_approves():
 
 
 def test_report_compiles_summary():
-    out = nodes.report({
-        "alert_type": "authentication", "severity": "high",
-        "verdict": "true_positive", "attack_techniques": ["T1110"],
-        "playbook": {"containment": []}, "approved": True,
-    })
+    out = nodes.report(
+        {
+            "alert_type": "authentication",
+            "severity": "high",
+            "verdict": "true_positive",
+            "attack_techniques": ["T1110"],
+            "playbook": {"containment": []},
+            "approved": True,
+        }
+    )
     assert out["final_report"]["verdict"] == "true_positive"
     assert out["final_report"]["approved"] is True

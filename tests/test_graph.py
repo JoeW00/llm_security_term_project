@@ -1,12 +1,22 @@
 from soc_agent.graph import build_graph
 
 HIGH = {
-    "source": "wazuh", "timestamp": "t", "category": "authentication",
-    "severity": "high", "message": "brute force", "indicators": ["203.0.113.45"], "raw": {},
+    "source": "wazuh",
+    "timestamp": "t",
+    "category": "authentication",
+    "severity": "high",
+    "message": "brute force",
+    "indicators": ["203.0.113.45"],
+    "raw": {},
 }
 LOW = {
-    "source": "wazuh", "timestamp": "t", "category": "system",
-    "severity": "low", "message": "heartbeat", "indicators": [], "raw": {},
+    "source": "wazuh",
+    "timestamp": "t",
+    "category": "system",
+    "severity": "low",
+    "message": "heartbeat",
+    "indicators": [],
+    "raw": {},
 }
 
 
