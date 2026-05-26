@@ -35,6 +35,7 @@ class IncidentState(TypedDict, total=False):
     enrichment: dict[str, Any]
     verdict: Verdict
     confidence: float
+    rationale: str
     attack_techniques: list[str]
     playbook: dict[str, Any]
     critique: dict[str, Any]
