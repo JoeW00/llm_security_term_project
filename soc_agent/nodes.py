@@ -6,6 +6,7 @@ import ipaddress
 import re
 from typing import Any
 
+from soc_agent.approval import ApprovalPolicy, AutoApprovePolicy
 from soc_agent.classifier import Classifier, RuleBasedClassifier
 from soc_agent.reasoners.critic import DeterministicCritic
 from soc_agent.reasoners.investigator import RuleBasedInvestigator
@@ -19,6 +20,7 @@ _DEFAULT_CLASSIFIER = RuleBasedClassifier()
 _DEFAULT_INVESTIGATOR = RuleBasedInvestigator()
 _DEFAULT_PLAYBOOK_GENERATOR = TemplatePlaybookGenerator()
 _DEFAULT_CRITIC = DeterministicCritic()
+_DEFAULT_APPROVAL_POLICY = AutoApprovePolicy()
 
 # 關鍵字 → MITRE ATT&CK 技術 ID 的最小對應表。計畫 B 會換成檢索式
 # STIX/MITRE 對應；此處刻意保持確定性與離線。
@@ -161,9 +163,11 @@ def critique(state: IncidentState, *, critic: Critic | None = None) -> dict[str,
     return {"critique": result.model_dump(), "critique_iterations": iterations}
 
 
-def human_approval(state: IncidentState) -> dict[str, Any]:
-    """STUB：自動核准。計畫 D 換成 LangGraph interrupt 人工關卡。"""
-    return {"approved": True}
+def human_approval(state: IncidentState, *, policy: ApprovalPolicy | None = None) -> dict[str, Any]:
+    """處置動作前的安全閘門。計畫 D：預設自動核准，互動模式注入 interrupt 政策。"""
+    policy = policy or _DEFAULT_APPROVAL_POLICY
+    decision = policy.decide(state)
+    return {"approved": decision.approved, "approval_reason": decision.reason}
 
 
 def report(state: IncidentState) -> dict[str, Any]:
