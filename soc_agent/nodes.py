@@ -5,7 +5,11 @@ from __future__ import annotations
 import ipaddress
 from typing import Any
 
+from soc_agent.classifier import Classifier, RuleBasedClassifier
 from soc_agent.state import Alert, IncidentState
+
+# triage 的預設分類器：確定性、離線。正式環境由 build_graph 注入 Ollama 後端。
+_DEFAULT_CLASSIFIER = RuleBasedClassifier()
 
 # 關鍵字 → MITRE ATT&CK 技術 ID 的最小對應表。計畫 B 會換成檢索式
 # STIX/MITRE 對應；此處刻意保持確定性與離線。
@@ -34,13 +38,11 @@ def ingest(state: IncidentState) -> dict[str, Any]:
     return {"alert": alert.model_dump(), "iocs": list(alert.indicators)}
 
 
-def triage(state: IncidentState) -> dict[str, Any]:
-    """STUB：由正規化告警推導類型與嚴重度。計畫 A 換成微調本地分類器。"""
-    alert = state["alert"]
-    return {
-        "alert_type": alert.get("category", "unknown"),
-        "severity": alert.get("severity", "medium"),
-    }
+def triage(state: IncidentState, *, classifier: Classifier | None = None) -> dict[str, Any]:
+    """由分類器推導告警類型與嚴重度。計畫 A：預設規則式，正式環境注入微調模型。"""
+    classifier = classifier or _DEFAULT_CLASSIFIER
+    result = classifier.classify(state["alert"])
+    return {"alert_type": result.alert_type, "severity": result.severity}
 
 
 def enrich(state: IncidentState) -> dict[str, Any]:
@@ -161,7 +163,9 @@ if __name__ == "__main__":
 
     test_state: IncidentState = {
         "alert": {
-            "raw_message": "Suspicious login from 192.168.1.100 and connection to malicious-domain.com"
+            "raw_message": (
+                "Suspicious login from 192.168.1.100 and connection to malicious-domain.com"
+            )
         },
         "alert_type": "Credential Access",
         "severity": "high",
