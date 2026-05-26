@@ -2,9 +2,30 @@
 
 from __future__ import annotations
 
+import ipaddress
 from typing import Any
 
 from soc_agent.state import Alert, IncidentState
+
+# 關鍵字 → MITRE ATT&CK 技術 ID 的最小對應表。計畫 B 會換成檢索式
+# STIX/MITRE 對應；此處刻意保持確定性與離線。
+_TECHNIQUE_RULES: tuple[tuple[tuple[str, ...], str], ...] = (
+    (("brute force", "failed login", "failed password", "authentication"), "T1110"),
+    (("valid account", "successful login", "compromised credential"), "T1078"),
+    (("powershell", "command", "script", "/bin/sh", "cmd.exe"), "T1059"),
+    (("malware", "trojan", "virus", "ransomware"), "T1204"),
+)
+# 無任何規則命中時的保底技術（Valid Accounts）。
+_DEFAULT_TECHNIQUE = "T1078"
+
+
+def _looks_like_ip(value: str) -> bool:
+    """判斷字串是否為合法 IPv4/IPv6 位址。"""
+    try:
+        ipaddress.ip_address(value)
+    except ValueError:
+        return False
+    return True
 
 
 def ingest(state: IncidentState) -> dict[str, Any]:
@@ -23,27 +44,26 @@ def triage(state: IncidentState) -> dict[str, Any]:
 
 
 def enrich(state: IncidentState) -> dict[str, Any]:
-    """STUB：假裝查詢每個 IOC 的威脅情資。計畫 B 換成真實工具呼叫。Stub for nodes.enrich: Extracts IOCs and calls threat intelligence tools."""
+    """STUB：為每個 IOC 產生一筆威脅情資。計畫 B 換成真實工具呼叫。
+
+    確定性、離線：依 IOC 是否為 IP 位址挑選對應的模擬供應商回應，並以
+    `state["iocs"]` 為鍵建立 `enrichment`。計畫 B 會改成呼叫
+    AbuseIPDB / VirusTotal 等服務。
+    """
     print("--- NODE: ENRICH ---")
-    
-    # TODO (Week 15): Parse state["alert"] for real IPs/Domains 
-    # and call AbuseIPDB / VirusTotal APIs.
-    
-    # Mocking the extraction and API response for the Week 14 prototype
-    mocked_iocs = ["192.168.1.100", "malicious-domain.com"]
-    mocked_enrichment_data = {
-        "192.168.1.100": {"vendor": "AbuseIPDB", "score": 85, "reports": 12},
-        "malicious-domain.com": {"vendor": "VirusTotal", "positives": 5}
-    }
-    
-    print(f"[*] Extracted IOCs: {mocked_iocs}")
-    print(f"[*] Retrieved Enrichment: {mocked_enrichment_data}")
-    
-    # Return ONLY the keys we are responsible for updating
-    return {
-        "iocs": mocked_iocs,
-        "enrichment": mocked_enrichment_data
-    }
+    iocs = state.get("iocs", [])
+
+    enrichment: dict[str, Any] = {}
+    for ioc in iocs:
+        if _looks_like_ip(ioc):
+            enrichment[ioc] = {"vendor": "AbuseIPDB", "score": 85, "reports": 12}
+        else:
+            enrichment[ioc] = {"vendor": "VirusTotal", "positives": 5}
+
+    print(f"[*] Enriched IOCs: {list(enrichment)}")
+
+    # 只回傳本節點負責更新的鍵（iocs 由 ingest 決定，這裡不覆寫）。
+    return {"enrichment": enrichment}
 
 
 def investigate(state: IncidentState) -> dict[str, Any]:
@@ -54,23 +74,37 @@ def investigate(state: IncidentState) -> dict[str, Any]:
 
 
 def attack_mapping(state: IncidentState) -> dict[str, Any]:
-    """STUB：對應 MITRE ATT&CK 技術。計畫 B 換成檢索式對應。Stub for nodes.attack_mapping: Maps findings to MITRE ATT&CK."""
+    """STUB：依告警內容對應 MITRE ATT&CK 技術。計畫 B 換成檢索式對應。
+
+    確定性、離線：把告警類型、訊息與 IOC 串成一段文字，比對
+    `_TECHNIQUE_RULES` 關鍵字，回傳命中的技術 ID（依規則順序去重）。
+    無命中時回傳 `_DEFAULT_TECHNIQUE`。計畫 B 會換成本地 STIX/MITRE 檢索。
+    """
     print("--- NODE: ATT&CK MAPPING ---")
-    
-    # TODO (Week 15): Map the enrichment findings to local STIX/MITRE data.
-    
-    # Mocking the MITRE mapping based on our fake enrichment data
-    mocked_techniques = [
-        "T1078 - Valid Accounts", 
-        "T1059 - Command and Scripting Interpreter"
-    ]
-    
-    print(f"[*] Mapped Techniques: {mocked_techniques}")
-    
-    # Return ONLY the keys we are responsible for updating
-    return {
-        "attack_techniques": mocked_techniques
-    }
+
+    alert = state.get("alert", {})
+    haystack = " ".join(
+        str(part)
+        for part in (
+            state.get("alert_type", ""),
+            alert.get("category", ""),
+            alert.get("message", ""),
+            *state.get("iocs", []),
+        )
+    ).lower()
+
+    techniques: list[str] = []
+    for keywords, technique in _TECHNIQUE_RULES:
+        if any(keyword in haystack for keyword in keywords) and technique not in techniques:
+            techniques.append(technique)
+
+    if not techniques:
+        techniques.append(_DEFAULT_TECHNIQUE)
+
+    print(f"[*] Mapped Techniques: {techniques}")
+
+    # 只回傳本節點負責更新的鍵。
+    return {"attack_techniques": techniques}
 
 
 def playbook(state: IncidentState) -> dict[str, Any]:
@@ -119,31 +153,34 @@ def report(state: IncidentState) -> dict[str, Any]:
         }
     }
 
-#看你們需不需要這部分的給助教看 mockup，不需要的話就 comment 或刪掉謝謝
+
+# 看你們需不需要這部分的給助教看 mockup，不需要的話就 comment 或刪掉謝謝
 if __name__ == "__main__":
-    # Initialize a fake state passed from the previous node (Triage) 
+    # Initialize a fake state passed from the previous node (Triage)
     print("MOCKUP TEST PREVIEW")
 
     test_state: IncidentState = {
-        "alert": {"raw_message": "Suspicious login from 192.168.1.100 and connection to malicious-domain.com"},
+        "alert": {
+            "raw_message": "Suspicious login from 192.168.1.100 and connection to malicious-domain.com"
+        },
         "alert_type": "Credential Access",
         "severity": "high",
         "iocs": [],
         "enrichment": {},
-        "attack_techniques": []
+        "attack_techniques": [],
     }
-    
+
     # Run the enrich stub
     updated_state_1 = enrich(test_state)
-    
+
     # Simulate LangGraph merging the state using dictionary updates
     test_state.update(updated_state_1)
-    
+
     # Run the mapping stub
     updated_state_2 = attack_mapping(test_state)
-    
+
     # Simulate LangGraph merging the state again
     test_state.update(updated_state_2)
-    
+
     print("\n--- TEST COMPLETE ---")
     print("If you see this, your node skeletons are working perfectly with TypedDict.")
