@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ipaddress
+import re
 from typing import Any
 
 from soc_agent.classifier import Classifier, RuleBasedClassifier
@@ -22,6 +23,19 @@ _TECHNIQUE_RULES: tuple[tuple[tuple[str, ...], str], ...] = (
 # 無任何規則命中時的保底技術（Valid Accounts）。
 _DEFAULT_TECHNIQUE = "T1078"
 
+# 離線 IOC 萃取：從告警訊息抽取 IP / domain / hash。順序決定去重時的優先呈現。
+_IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+_HASH_RE = re.compile(r"\b[a-fA-F0-9]{32,64}\b")
+_DOMAIN_RE = re.compile(r"\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b")
+
+
+def _extract_iocs(message: str) -> list[str]:
+    """從訊息抽取 IP / hash / domain。確定性、離線、依正則順序回傳。"""
+    found: list[str] = []
+    for pattern in (_IPV4_RE, _HASH_RE, _DOMAIN_RE):
+        found.extend(pattern.findall(message))
+    return found
+
 
 def _looks_like_ip(value: str) -> bool:
     """判斷字串是否為合法 IPv4/IPv6 位址。"""
@@ -33,9 +47,13 @@ def _looks_like_ip(value: str) -> bool:
 
 
 def ingest(state: IncidentState) -> dict[str, Any]:
-    """驗證並正規化原始告警，萃取初始 IOC 清單。"""
+    """驗證並正規化原始告警，合併欄位 IOC 與訊息中萃取的 IOC（去重）。"""
     alert = Alert.model_validate(state["alert"])
-    return {"alert": alert.model_dump(), "iocs": list(alert.indicators)}
+    iocs = list(alert.indicators)
+    for ioc in _extract_iocs(alert.message):
+        if ioc not in iocs:
+            iocs.append(ioc)
+    return {"alert": alert.model_dump(), "iocs": iocs}
 
 
 def triage(state: IncidentState, *, classifier: Classifier | None = None) -> dict[str, Any]:
