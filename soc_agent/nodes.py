@@ -7,10 +7,17 @@ import re
 from typing import Any
 
 from soc_agent.classifier import Classifier, RuleBasedClassifier
+from soc_agent.reasoners.critic import DeterministicCritic
+from soc_agent.reasoners.investigator import RuleBasedInvestigator
+from soc_agent.reasoners.playbook import TemplatePlaybookGenerator
+from soc_agent.reasoning import Critic, Investigator, PlaybookGenerator
 from soc_agent.state import Alert, IncidentState
 
 # triage 的預設分類器：確定性、離線。正式環境由 build_graph 注入 Ollama 後端。
 _DEFAULT_CLASSIFIER = RuleBasedClassifier()
+_DEFAULT_INVESTIGATOR = RuleBasedInvestigator()
+_DEFAULT_PLAYBOOK_GENERATOR = TemplatePlaybookGenerator()
+_DEFAULT_CRITIC = DeterministicCritic()
 
 # 關鍵字 → MITRE ATT&CK 技術 ID 的最小對應表。計畫 B 會換成檢索式
 # STIX/MITRE 對應；此處刻意保持確定性與離線。
@@ -92,11 +99,17 @@ def enrich(state: IncidentState) -> dict[str, Any]:
     return {"enrichment": enrichment}
 
 
-def investigate(state: IncidentState) -> dict[str, Any]:
-    """STUB：判定真偽。計畫 C 換成 LLM 研判。"""
-    severity = state.get("severity", "medium")
-    verdict = "true_positive" if severity in ("high", "critical") else "unknown"
-    return {"verdict": verdict, "confidence": 0.5}
+def investigate(
+    state: IncidentState, *, investigator: Investigator | None = None
+) -> dict[str, Any]:
+    """研判告警真偽。計畫 C：預設規則式，正式環境注入 LLM 研判。"""
+    investigator = investigator or _DEFAULT_INVESTIGATOR
+    result = investigator.assess(state)
+    return {
+        "verdict": result.verdict,
+        "confidence": result.confidence,
+        "rationale": result.rationale,
+    }
 
 
 def attack_mapping(state: IncidentState) -> dict[str, Any]:
@@ -133,32 +146,18 @@ def attack_mapping(state: IncidentState) -> dict[str, Any]:
     return {"attack_techniques": techniques}
 
 
-def playbook(state: IncidentState) -> dict[str, Any]:
-    """STUB：產生三階段處置劇本。計畫 C 換成 LLM 生成。"""
-    return {
-        "playbook": {
-            "containment": ["isolate affected host"],
-            "eradication": ["reset compromised credentials"],
-            "recovery": ["restore service and monitor"],
-        }
-    }
+def playbook(state: IncidentState, *, generator: PlaybookGenerator | None = None) -> dict[str, Any]:
+    """生成三階段處置劇本。計畫 C：預設模板，正式環境注入 LLM 生成。"""
+    generator = generator or _DEFAULT_PLAYBOOK_GENERATOR
+    return {"playbook": generator.generate(state).model_dump()}
 
 
-def critique(state: IncidentState) -> dict[str, Any]:
-    """STUB：反思劇本完整性。
-
-    骨架階段刻意確定性：第一輪標記為不完整（強制回頭重生一次），之後標記
-    完整。計畫 C 換成真實 LLM 批判。
-    """
+def critique(state: IncidentState, *, critic: Critic | None = None) -> dict[str, Any]:
+    """評分式自我批判，驅動反思迴圈。計畫 C：預設確定性，正式環境注入 LLM rubric。"""
+    critic = critic or _DEFAULT_CRITIC
+    result = critic.review(state)
     iterations = state.get("critique_iterations", 0) + 1
-    complete = iterations >= 2
-    return {
-        "critique_iterations": iterations,
-        "critique": {
-            "complete": complete,
-            "notes": "ok" if complete else "needs containment detail",
-        },
-    }
+    return {"critique": result.model_dump(), "critique_iterations": iterations}
 
 
 def human_approval(state: IncidentState) -> dict[str, Any]:
