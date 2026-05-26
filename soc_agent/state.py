@@ -41,4 +41,5 @@ class IncidentState(TypedDict, total=False):
     critique: dict[str, Any]
     critique_iterations: int
     approved: bool
+    approval_reason: str
     final_report: dict[str, Any]
