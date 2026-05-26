@@ -1,6 +1,6 @@
 # 專案接手筆記（HANDOFF）
 
-> 最後更新：2026-05-25
+> 最後更新：2026-05-26
 > 下次回來請先讀這份，就知道從哪裡開始。
 
 ---
@@ -19,9 +19,17 @@ LangGraph 版「自主式 SOC Tier-1 事件回應代理」的**基礎骨架（�
 | 設計 spec（含 Mermaid 流程圖 + PDF） | ✅ 完成 |
 | 計畫 0：基礎骨架實作計畫 | ✅ 完成 |
 | 計畫 0：實作（7 個 task，Subagent 驅動 + 雙重審查） | ✅ 完成、已合併 `main` |
-| 計畫 A–D（四個子系統） | ⬜ 尚未開始 |
+| Claude Code 自動化設定（hooks / subagents / skills / `.mcp.json`） | ✅ 完成、已合併 `main` |
+| 計畫 B：Week 14 prototype（組員 2 起手） | 🟡 進行中 |
+| 計畫 A / C / D | ⬜ 尚未開始 |
 
-**git 狀態**：在 `main`（原 `master` 已改名），最新是 merge commit `9990126`。功能分支已刪。**已推上 GitHub（Private）**：`origin` → https://github.com/JoeW00/llm_security_term_project.git，`main` 追蹤 `origin/main`。注意推送需用 `JoeW00` gh 帳號（`gh auth switch --user JoeW00`）。
+**git 狀態**：在 `main`（原 `master` 已改名），最新是 merge commit `29c7e84`。功能分支用完即刪。**已推上 GitHub（Private）**：`origin` → https://github.com/JoeW00/llm_security_term_project.git，`main` 追蹤 `origin/main`。注意推送需用 `JoeW00` gh 帳號（`gh auth switch --user JoeW00`）。
+
+**2026-05-26 這次 session 做了什麼**：
+1. 合併組員 2 的 Week 14 prototype（`a246796`）：`enrich` / `attack_mapping` 初版 + 下載 MITRE ATT&CK STIX 資料到 `data/enterprise-attack.json`。
+2. 合併 Claude Code 自動化設定分支。
+3. 清理 `.gitignore`（補 `__pycache__/` / `*.pyc` / `.DS_Store`），並把誤入庫的 `soc_agent/__pycache__/*.pyc` 從版控移除。
+4. **修掉組員 2 prototype 的契約 bug**（`fix/enrich-attackmap-honor-inputs` → 已併入 `main`）：原本兩個節點忽略輸入、回傳寫死 mock，導致 2 個契約測試失敗。現在 `enrich` 依 `state["iocs"]` 建 enrichment、`attack_mapping` 依告警內容比對關鍵字回傳 MITRE 技術 ID。25 測試恢復全綠。
 
 ---
 
@@ -65,7 +73,7 @@ tests/              # 25 個測試（state/alerts/nodes/routing/graph/cli）
 | 計畫 | 負責人 | 替換的 stub | 重點 |
 |---|---|---|---|
 | **A（P1）** | — | `nodes.ingest` + `nodes.triage` | 整理告警資料集、LoRA 微調本地分類器（Ollama）、與雲端 zero-shot 做消融比較 |
-| **B（P2）** | — | `nodes.enrich` + `nodes.attack_mapping` | 威脅情資工具呼叫（abuse.ch / AbuseIPDB）、MITRE ATT&CK 檢索對應 |
+| **B（P2）** | 組員 2 | `nodes.enrich` + `nodes.attack_mapping` | 🟡 prototype 已起手：兩節點現在會吃輸入但仍回**確定性 mock**（`enrich` 給假供應商分數、`attack_mapping` 用關鍵字→技術 ID 對照表）。下一步換成真實威脅情資工具呼叫（abuse.ch / AbuseIPDB）+ 用 `data/enterprise-attack.json` 做檢索式 MITRE 對應 |
 | **C（P3）** | — | `nodes.investigate` + `nodes.playbook` + `nodes.critique` | LLM 研判 TP/FP、生成劇本、真實反思批判 |
 | **D（P4）** | — | `nodes.human_approval` | LangGraph interrupt 人工關卡、提示注入韌性評估、Demo UI |
 
@@ -86,6 +94,7 @@ tests/              # 25 個測試（state/alerts/nodes/routing/graph/cli）
 
 ## 待辦 / 前瞻備註（給計畫 A–C 實作者）
 
+- **計畫 B 注意**：`enrich` / `attack_mapping` 雖然已會吃輸入，但回的是寫死的確定性 mock；換成真實工具呼叫時，記得 (1) 外部 API 結果落地快取以利重現、(2) 測試維持離線（patch / 注入），(3) `attack_techniques` 目前存「裸技術 ID」（如 `"T1110"`）以通過 `"T1110" in list` 的成員檢查——若要改成 `"T1110 - Brute Force"` 形式，需同步調整 `tests/test_cli.py`。STIX 來源已在 `data/enterprise-attack.json`。
 - **計畫 C 注意**：`investigate` stub 目前只測了 `high → true_positive`；真實實作要補 `critical`、`low/unknown` 分支的測試與行為。
 - **計畫 C 注意**：低風險旁路時 `final_report["verdict"]` 目前是 `None`（因為跳過了 investigate）。要決定這是不是預期 sentinel，或改成預設 `"unknown"`。
 - **CLI**：`run()` 目前對壞掉的告警 JSON 會丟出 Pydantic `ValidationError` 原始 traceback；要不要加友善錯誤訊息可在計畫 D 處理。
