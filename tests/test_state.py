@@ -1,4 +1,4 @@
-from soc_agent.state import Alert, IncidentState, MAX_CRITIQUE_ITERATIONS
+from soc_agent.state import MAX_CRITIQUE_ITERATIONS, Alert, IncidentState
 
 
 def test_alert_validates_and_defaults():
@@ -15,8 +15,12 @@ def test_alert_validates_and_defaults():
 
 def test_alert_round_trips_to_dict():
     alert = Alert(
-        source="wazuh", timestamp="t", category="auth",
-        severity="high", message="m", indicators=["1.2.3.4"],
+        source="wazuh",
+        timestamp="t",
+        category="auth",
+        severity="high",
+        message="m",
+        indicators=["1.2.3.4"],
     )
     dumped = alert.model_dump()
     assert dumped["severity"] == "high"
