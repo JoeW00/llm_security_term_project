@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
+from soc_agent.reasoning import LLMClientError
+
 
 class _Messages(Protocol):
     def create(self, **kwargs: Any) -> Any: ...
@@ -26,10 +28,15 @@ class AnthropicLLMClient:
         self._max_tokens = max_tokens
 
     def complete(self, *, system: str, prompt: str) -> str:
-        response = self._client.messages.create(
-            model=self._model,
-            system=system,
-            max_tokens=self._max_tokens,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return response.content[0].text
+        try:
+            response = self._client.messages.create(
+                model=self._model,
+                system=system,
+                max_tokens=self._max_tokens,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return response.content[0].text
+        except Exception as exc:  # 網路 / SDK / 空或非文字 content 一律正規化為 LLMClientError
+            # 訊息保持靜態（不回填 SDK 例外字串，避免將來若被記錄/外露時洩漏請求細節）；
+            # `from exc` 仍在 traceback 保留原因供除錯。
+            raise LLMClientError("LLM call failed") from exc

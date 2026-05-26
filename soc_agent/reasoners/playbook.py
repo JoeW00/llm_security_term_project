@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-from soc_agent.reasoning import LLMClient, PlaybookGenerator, PlaybookModel, parse_json
+from soc_agent.reasoning import (
+    LLMClient,
+    LLMClientError,
+    PlaybookGenerator,
+    PlaybookModel,
+    parse_json,
+)
 from soc_agent.state import IncidentState
 
 _SYSTEM = (
@@ -36,7 +42,7 @@ class LLMPlaybookGenerator:
         try:
             text = self._client.complete(system=_SYSTEM, prompt=self._build_prompt(state))
             return parse_json(text, PlaybookModel)
-        except (KeyError, TypeError, ValueError):
+        except (KeyError, TypeError, ValueError, LLMClientError):
             return self._fallback.generate(state)
 
     @staticmethod

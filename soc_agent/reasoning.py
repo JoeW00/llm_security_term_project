@@ -14,6 +14,13 @@ from pydantic import BaseModel, Field
 from soc_agent.state import IncidentState, Verdict
 
 
+class LLMClientError(Exception):
+    """LLMClient.complete 的失敗：呼叫或回應解析出錯（網路 / SDK / 空回應等）。
+
+    LLMClient 實作在任何失敗時丟此例外，呼叫端（reasoner）據此退回確定性預設。
+    """
+
+
 class Investigation(BaseModel):
     """研判結果：真偽判定 + 信心度 + 理由。"""
 

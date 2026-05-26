@@ -1,4 +1,7 @@
+import pytest
+
 from soc_agent.reasoners.anthropic_client import AnthropicLLMClient
+from soc_agent.reasoning import LLMClientError
 
 
 class FakeContentBlock:
@@ -36,3 +39,39 @@ def test_complete_extracts_text_and_maps_args():
     assert kwargs["system"] == "SYS"
     assert kwargs["messages"] == [{"role": "user", "content": "USER"}]
     assert "max_tokens" in kwargs
+
+
+class _RaisingMessages:
+    def create(self, **kwargs):
+        raise ConnectionError("network down")
+
+
+class _RaisingSDK:
+    def __init__(self):
+        self.messages = _RaisingMessages()
+
+
+class _EmptyResponse:
+    content = []
+
+
+class _EmptyMessages:
+    def create(self, **kwargs):
+        return _EmptyResponse()
+
+
+class _EmptySDK:
+    def __init__(self):
+        self.messages = _EmptyMessages()
+
+
+def test_complete_raises_llmclienterror_on_transport_error():
+    client = AnthropicLLMClient(_RaisingSDK(), model="m")
+    with pytest.raises(LLMClientError):
+        client.complete(system="s", prompt="p")
+
+
+def test_complete_raises_llmclienterror_on_empty_content():
+    client = AnthropicLLMClient(_EmptySDK(), model="m")
+    with pytest.raises(LLMClientError):
+        client.complete(system="s", prompt="p")

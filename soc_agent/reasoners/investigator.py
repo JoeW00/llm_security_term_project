@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from soc_agent.reasoning import Investigation, Investigator, LLMClient, parse_json
+from soc_agent.reasoning import Investigation, Investigator, LLMClient, LLMClientError, parse_json
 from soc_agent.state import IncidentState
 
 _SYSTEM = (
@@ -38,7 +38,7 @@ class LLMInvestigator:
         try:
             text = self._client.complete(system=_SYSTEM, prompt=self._build_prompt(state))
             return parse_json(text, Investigation)
-        except (KeyError, TypeError, ValueError):
+        except (KeyError, TypeError, ValueError, LLMClientError):
             return self._fallback.assess(state)
 
     @staticmethod
