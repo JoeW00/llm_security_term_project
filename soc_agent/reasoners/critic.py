@@ -5,7 +5,14 @@
 
 from __future__ import annotations
 
-from soc_agent.reasoning import Critic, CritiqueModel, LLMClient, RubricScores, parse_json
+from soc_agent.reasoning import (
+    Critic,
+    CritiqueModel,
+    LLMClient,
+    LLMClientError,
+    RubricScores,
+    parse_json,
+)
 from soc_agent.state import IncidentState
 
 # rubric 通過門檻：各維度（0–5）皆需達此值才算 complete。
@@ -52,7 +59,7 @@ class LLMCritic:
         try:
             text = self._client.complete(system=_SYSTEM, prompt=self._build_prompt(state))
             result = parse_json(text, CritiqueModel)
-        except (KeyError, TypeError, ValueError):
+        except (KeyError, TypeError, ValueError, LLMClientError):
             return self._fallback.review(state)
         scores = result.scores
         complete = all(
