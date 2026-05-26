@@ -27,7 +27,7 @@ LangGraph 版「自主式 SOC Tier-1 事件回應代理」的**基礎骨架（�
 | 計畫 C LLM 軌：接真實 Anthropic 後端（韌性 + 工廠 + CLI + Demo 切換） | ✅ 完成、已合併 `main`（spec + plan + 6 task + 安全修補） |
 | 計畫 B：Week 14 prototype（組員 2 起手） | 🟡 進行中 |
 
-**git 狀態**：在 `main`（原 `master` 已改名），最新是 `425e1ae`（計畫 C LLM 軌 merge + uv.lock 同步）。功能分支用完即刪。**已推上 GitHub（Private）**：`origin` → https://github.com/JoeW00/llm_security_term_project.git，`main` 追蹤 `origin/main`。注意推送需用 `JoeW00` gh 帳號（`gh auth switch --user JoeW00`）。
+**git 狀態**：在 `main`（原 `master` 已改名）。本 session 全部工作（計畫 A/C/D + Demo UI + 計畫 C LLM 軌 + 各份 spec/plan/handoff）皆已 merge 並推上 `origin/main`；最後一個 feature merge 是 `425e1ae`（計畫 C LLM 軌 + uv.lock 同步），其後的 handoff 更新亦已推上。功能分支用完即刪。**已推上 GitHub（Private）**：`origin` → https://github.com/JoeW00/llm_security_term_project.git，`main` 追蹤 `origin/main`。注意推送需用 `JoeW00` gh 帳號（`gh auth switch --user JoeW00`）。**下次回來：先讀「下次從哪開始」段。**
 
 **2026-05-26 這次 session 做了什麼**：
 1. 合併組員 2 的 Week 14 prototype（`a246796`）：`enrich` / `attack_mapping` 初版 + 下載 MITRE ATT&CK STIX 資料到 `data/enterprise-attack.json`。
