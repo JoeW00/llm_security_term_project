@@ -39,6 +39,10 @@ def test_llm_generator_feeds_critique_issues_into_prompt():
     prompt = client.last_call["prompt"]
     assert "add eradication step" in prompt
     assert "cite IOC" in prompt
+    # 信任邊界：不可信的 issues 必須落在 CONTEXT 區段內（END 標記之前），不可外洩成指令
+    end = prompt.index("<<<END CONTEXT>>>")
+    assert prompt.index("add eradication step") < end
+    assert prompt.index("cite IOC") < end
 
 
 def test_llm_generator_falls_back_on_malformed():
