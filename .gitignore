@@ -5,3 +5,9 @@
 
 #API KEYS
 .env
+.docs/
+
+# Python / OS artifacts
+__pycache__/
+*.pyc
+.DS_Store
