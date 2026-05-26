@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import functools
+from typing import Any
 
 from langgraph.graph import END, START, StateGraph
 
 from soc_agent import nodes
+from soc_agent.approval import ApprovalPolicy
 from soc_agent.classifier import Classifier
 from soc_agent.reasoning import Critic, Investigator, PlaybookGenerator
 from soc_agent.routing import route_after_critique, route_after_triage
@@ -18,8 +20,10 @@ def build_graph(
     investigator: Investigator | None = None,
     playbook_gen: PlaybookGenerator | None = None,
     critic: Critic | None = None,
+    approval_policy: ApprovalPolicy | None = None,
+    checkpointer: Any = None,
 ):
-    """連接所有節點與條件邊，回傳 compiled graph。可選注入 triage 分類器與 C 計畫推理器。"""
+    """連接所有節點與條件邊，回傳 compiled graph。可選注入推理器、核准政策與 checkpointer。"""
     builder = StateGraph(IncidentState)
 
     triage_node = (
@@ -40,6 +44,11 @@ def build_graph(
     critique_node = (
         nodes.critique if critic is None else functools.partial(nodes.critique, critic=critic)
     )
+    human_approval_node = (
+        nodes.human_approval
+        if approval_policy is None
+        else functools.partial(nodes.human_approval, policy=approval_policy)
+    )
 
     builder.add_node("ingest", nodes.ingest)
     builder.add_node("triage", triage_node)
@@ -48,7 +57,7 @@ def build_graph(
     builder.add_node("attack_mapping", nodes.attack_mapping)
     builder.add_node("playbook", playbook_node)
     builder.add_node("critique", critique_node)
-    builder.add_node("human_approval", nodes.human_approval)
+    builder.add_node("human_approval", human_approval_node)
     builder.add_node("report", nodes.report)
 
     builder.add_edge(START, "ingest")
@@ -70,4 +79,4 @@ def build_graph(
     builder.add_edge("human_approval", "report")
     builder.add_edge("report", END)
 
-    return builder.compile()
+    return builder.compile(checkpointer=checkpointer)

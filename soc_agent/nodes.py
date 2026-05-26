@@ -6,11 +6,13 @@ import ipaddress
 import re
 from typing import Any
 
+from soc_agent.approval import ApprovalPolicy, AutoApprovePolicy
 from soc_agent.classifier import Classifier, RuleBasedClassifier
 from soc_agent.reasoners.critic import DeterministicCritic
 from soc_agent.reasoners.investigator import RuleBasedInvestigator
 from soc_agent.reasoners.playbook import TemplatePlaybookGenerator
 from soc_agent.reasoning import Critic, Investigator, PlaybookGenerator
+from soc_agent.reporting import render_markdown
 from soc_agent.state import Alert, IncidentState
 
 # triage 的預設分類器：確定性、離線。正式環境由 build_graph 注入 Ollama 後端。
@@ -18,6 +20,7 @@ _DEFAULT_CLASSIFIER = RuleBasedClassifier()
 _DEFAULT_INVESTIGATOR = RuleBasedInvestigator()
 _DEFAULT_PLAYBOOK_GENERATOR = TemplatePlaybookGenerator()
 _DEFAULT_CRITIC = DeterministicCritic()
+_DEFAULT_APPROVAL_POLICY = AutoApprovePolicy()
 
 # 關鍵字 → MITRE ATT&CK 技術 ID 的最小對應表。計畫 B 會換成檢索式
 # STIX/MITRE 對應；此處刻意保持確定性與離線。
@@ -160,23 +163,27 @@ def critique(state: IncidentState, *, critic: Critic | None = None) -> dict[str,
     return {"critique": result.model_dump(), "critique_iterations": iterations}
 
 
-def human_approval(state: IncidentState) -> dict[str, Any]:
-    """STUB：自動核准。計畫 D 換成 LangGraph interrupt 人工關卡。"""
-    return {"approved": True}
+def human_approval(state: IncidentState, *, policy: ApprovalPolicy | None = None) -> dict[str, Any]:
+    """處置動作前的安全閘門。計畫 D：預設自動核准，互動模式注入 interrupt 政策。"""
+    policy = policy or _DEFAULT_APPROVAL_POLICY
+    decision = policy.decide(state)
+    return {"approved": decision.approved, "approval_reason": decision.reason}
 
 
 def report(state: IncidentState) -> dict[str, Any]:
-    """彙整最終結構化事件報告。"""
-    return {
-        "final_report": {
-            "alert_type": state.get("alert_type"),
-            "severity": state.get("severity"),
-            "verdict": state.get("verdict"),
-            "attack_techniques": state.get("attack_techniques", []),
-            "playbook": state.get("playbook", {}),
-            "approved": state.get("approved", False),
-        }
+    """彙整最終結構化事件報告（JSON 結構 + Markdown 渲染）。"""
+    data: dict[str, Any] = {
+        "alert_type": state.get("alert_type"),
+        "severity": state.get("severity"),
+        "verdict": state.get("verdict"),
+        "rationale": state.get("rationale", ""),
+        "attack_techniques": state.get("attack_techniques", []),
+        "playbook": state.get("playbook", {}),
+        "approved": state.get("approved", False),
+        "approval_reason": state.get("approval_reason", ""),
     }
+    data["markdown"] = render_markdown(data)
+    return {"final_report": data}
 
 
 # 看你們需不需要這部分的給助教看 mockup，不需要的話就 comment 或刪掉謝謝
