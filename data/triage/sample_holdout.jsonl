@@ -1,0 +1,3 @@
+{"alert": {"source": "wazuh", "timestamp": "t", "category": "authentication", "severity": "high", "message": "84 failed login attempts from 203.0.113.45", "indicators": ["203.0.113.45"], "raw": {}}, "expected": {"alert_type": "authentication", "severity": "high"}}
+{"alert": {"source": "wazuh", "timestamp": "t", "category": "malware", "severity": "critical", "message": "ransomware signature match on host web-prod-01", "indicators": [], "raw": {}}, "expected": {"alert_type": "malware", "severity": "critical"}}
+{"alert": {"source": "wazuh", "timestamp": "t", "category": "system", "severity": "low", "message": "scheduled heartbeat ok", "indicators": [], "raw": {}}, "expected": {"alert_type": "system", "severity": "low"}}
