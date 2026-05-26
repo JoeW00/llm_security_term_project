@@ -34,3 +34,19 @@ def test_ingest_no_message_iocs_keeps_indicators_only():
     alert = dict(ALERT, message="nothing useful here", indicators=["root"])
     out = nodes.ingest({"alert": alert})
     assert out["iocs"] == ["root"]
+
+
+def test_extract_iocs_no_redos_on_adversarial_message():
+    # 對抗性輸入：大量不以合法 TLD 結尾的標籤序列。舊的巢狀量詞正則會 catastrophic
+    # backtracking 卡住數十秒（DoS）；線性正則應瞬間完成且不誤判為 domain。
+    payload = "a-" * 50000
+    iocs = nodes._extract_iocs(payload)
+    assert iocs == []  # 無合法 domain，且不掛住
+
+
+def test_extract_iocs_caps_message_length():
+    # 防禦縱深：超過長度上限的訊息會被截斷後才做 regex；上限之後的 IOC 不應被抽出。
+    domain = "late.example.com"
+    padded = ("x " * nodes._MAX_MESSAGE_LEN) + domain
+    assert domain not in nodes._extract_iocs(padded)
+    assert "early.example.com" in nodes._extract_iocs("early.example.com then padding")
