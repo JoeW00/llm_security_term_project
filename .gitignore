@@ -5,9 +5,20 @@
 
 #API KEYS
 .env
-.docs/
 
 # Python / OS artifacts
 __pycache__/
 *.pyc
 .DS_Store
+
+
+docs/
+
+# Fine-tuning / eval artifacts (large; never commit)
+data/triage/raw/
+data/triage/train.jsonl
+data/triage/holdout.jsonl
+data/triage/sft.jsonl
+data/triage/stats.json
+out/
+*.gguf

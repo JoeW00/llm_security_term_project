@@ -1,0 +1,4 @@
+# ollama create soc-triage -f scripts/finetune/Modelfile
+# 分流的 system prompt 由程式（prompts.TRIAGE_SYSTEM_PROMPT）在推論時注入，故此處留空。
+FROM ./out/gguf/triage-f16.gguf
+PARAMETER temperature 0

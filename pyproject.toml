@@ -18,6 +18,10 @@ packages = ["soc_agent"]
 dev = ["pytest>=8.0", "ruff>=0.6"]
 demo = ["streamlit>=1.30"]
 llm = ["anthropic>=0.40"]
+# 評估腳本用的本地 Ollama client（純 Python，跨平台安全）。微調相依（torch/
+# transformers/peft/trl）不放這裡：DGX Spark 為 aarch64+CUDA，torch 須走 NVIDIA
+# 提供的輪子，見《執行指南》§B 的 DGX 安裝步驟，避免 uv sync 在此拉錯 wheel。
+eval = ["ollama>=0.3"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
