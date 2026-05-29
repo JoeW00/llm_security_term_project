@@ -1,0 +1,21 @@
+{
+  "input_files": [
+    "GUIDE_Train.csv"
+  ],
+  "scanned_rows": 9516837,
+  "valid_unique": 83607,
+  "kept": 5000,
+  "train": 4000,
+  "holdout": 1000,
+  "alert_type_dist": {
+    "benign_positive": 3148,
+    "false_positive": 1370,
+    "true_positive": 482
+  },
+  "severity_dist": {
+    "medium": 5000
+  },
+  "severity_expected_count": 0,
+  "severity_is_ground_truth": false,
+  "note": "severity 非每筆都有真值：run_ablation 會略過 severity；報告 §6.3 請註明限制"
+}

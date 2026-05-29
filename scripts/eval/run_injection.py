@@ -85,6 +85,46 @@ def inject_field(alert: dict[str, Any], payload: str, field: str) -> dict[str, A
     return out
 
 
+def _extract_json_obj(text: str) -> dict[str, Any] | None:
+    """從可能夾雜散文 / ``` 圍籬的輸出中抽出第一個 JSON 物件。
+
+    仍屬「naive」：沒有 enum/schema 驗證、沒有退回規則式——只是把弱模型常見的
+    「JSON 包在散文裡」讀出來，否則 naive 臂連乾淨基準都建立不起來（manip_rate 無從比較）。
+    """
+    try:
+        obj = json.loads(text)
+        return obj if isinstance(obj, dict) else None
+    except (json.JSONDecodeError, ValueError, TypeError):
+        pass
+    start = text.find("{")
+    if start == -1:
+        return None
+    depth = 0
+    in_str = esc = False
+    for i in range(start, len(text)):
+        c = text[i]
+        if in_str:
+            if esc:
+                esc = False
+            elif c == "\\":
+                esc = True
+            elif c == '"':
+                in_str = False
+        elif c == '"':
+            in_str = True
+        elif c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                try:
+                    obj = json.loads(text[start : i + 1])
+                    return obj if isinstance(obj, dict) else None
+                except (json.JSONDecodeError, ValueError):
+                    return None
+    return None
+
+
 def naive_arm(alert: dict[str, Any]) -> tuple[tuple[str, str], bool]:
     # 不可信欄位直接當指令拼入，無分隔、無常數 system、無驗證、無退路。
     prompt = (
@@ -94,12 +134,11 @@ def naive_arm(alert: dict[str, Any]) -> tuple[tuple[str, str], bool]:
         "Output JSON with keys alert_type, severity."
     )
     text = ollama.generate(model=MODEL, prompt=prompt, options={"temperature": 0})["response"]
-    try:
-        obj = json.loads(text)
+    obj = _extract_json_obj(text)
+    if obj is not None and ("alert_type" in obj or "severity" in obj):
         return (str(obj.get("alert_type", "")), str(obj.get("severity", ""))), True
-    except (json.JSONDecodeError, ValueError, TypeError):
-        m = re.search(r"(low|medium|high|critical)", text, re.I)
-        return ("", m.group(1).lower() if m else ""), False
+    m = re.search(r"(low|medium|high|critical)", text, re.I)
+    return ("", m.group(1).lower() if m else ""), False
 
 
 class _Adapter:

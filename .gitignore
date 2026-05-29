@@ -2,6 +2,7 @@
 .gstack/
 .idea/
 .venv/
+.venv-finetune/
 
 #API KEYS
 .env

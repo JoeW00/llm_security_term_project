@@ -1,4 +1,17 @@
-# ollama create soc-triage -f scripts/finetune/Modelfile
-# 分流的 system prompt 由程式（prompts.TRIAGE_SYSTEM_PROMPT）在推論時注入，故此處留空。
-FROM ./out/gguf/triage-f16.gguf
+# ollama create soc-triage -f scripts/finetune/Modelfile   （從專案根目錄執行）
+# 相對 FROM 由 ollama 以「本 Modelfile 所在目錄」為基準解析，故指回根目錄的 out/。
+FROM ../../out/gguf/triage-f16.gguf
+
+# Qwen2 ChatML 模板：轉檔後 ollama 未自動帶入 chat template（會退成 passthrough
+# `{{ .Prompt }}`，丟掉 system 與 ChatML 標記 → 模型不進入 assistant 模式而輸出散文）。
+# 此處顯式重建訓練時的格式；system prompt 仍由程式（TRIAGE_SYSTEM_PROMPT）在推論時注入到 .System。
+TEMPLATE """{{ if .System }}<|im_start|>system
+{{ .System }}<|im_end|>
+{{ end }}<|im_start|>user
+{{ .Prompt }}<|im_end|>
+<|im_start|>assistant
+"""
+
 PARAMETER temperature 0
+PARAMETER stop "<|im_end|>"
+PARAMETER stop "<|endoftext|>"
