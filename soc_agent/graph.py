@@ -9,7 +9,9 @@ from langgraph.graph import END, START, StateGraph
 
 from soc_agent import nodes
 from soc_agent.approval import ApprovalPolicy
+from soc_agent.attack import AttackMapper
 from soc_agent.classifier import Classifier
+from soc_agent.enrichment import Enricher
 from soc_agent.reasoning import Critic, Investigator, PlaybookGenerator
 from soc_agent.routing import route_after_critique, route_after_triage
 from soc_agent.state import IncidentState
@@ -21,6 +23,8 @@ def build_graph(
     playbook_gen: PlaybookGenerator | None = None,
     critic: Critic | None = None,
     approval_policy: ApprovalPolicy | None = None,
+    attack_mapper: AttackMapper | None = None,
+    enricher: Enricher | None = None,
     checkpointer: Any = None,
 ):
     """連接所有節點與條件邊，回傳 compiled graph。可選注入推理器、核准政策與 checkpointer。"""
@@ -49,12 +53,20 @@ def build_graph(
         if approval_policy is None
         else functools.partial(nodes.human_approval, policy=approval_policy)
     )
+    attack_mapping_node = (
+        nodes.attack_mapping
+        if attack_mapper is None
+        else functools.partial(nodes.attack_mapping, mapper=attack_mapper)
+    )
+    enrich_node = (
+        nodes.enrich if enricher is None else functools.partial(nodes.enrich, enricher=enricher)
+    )
 
     builder.add_node("ingest", nodes.ingest)
     builder.add_node("triage", triage_node)
-    builder.add_node("enrich", nodes.enrich)
+    builder.add_node("enrich", enrich_node)
     builder.add_node("investigate", investigate_node)
-    builder.add_node("attack_mapping", nodes.attack_mapping)
+    builder.add_node("attack_mapping", attack_mapping_node)
     builder.add_node("playbook", playbook_node)
     builder.add_node("critique", critique_node)
     builder.add_node("human_approval", human_approval_node)

@@ -65,7 +65,7 @@ LangGraph 版「自主式 SOC Tier-1 事件回應代理」的**基礎骨架（�
 | 計畫 D：編排與安全（Human Approval + Report + 注入韌性）整合邊界 | ✅ 完成、已合併 `main`（spec + plan + 5 task + 安全修補） |
 | 計畫 D Demo UI（Streamlit 互動展示） | ✅ 完成、已合併 `main`（spec + plan + 3 task + langgraph 審查） |
 | 計畫 C LLM 軌：接真實 Anthropic 後端（韌性 + 工廠 + CLI + Demo 切換） | ✅ 完成、已合併 `main`（spec + plan + 6 task + 安全修補） |
-| 計畫 B：Week 14 prototype（組員 2 起手） | 🟡 進行中 |
+| 計畫 B：情資增強 + ATT&CK 對應整合邊界 | ✅ 完成（分支 `feat/plan-b-enrich-attack`，**尚未合併 `main`**；spec + plan + 8 task + 雙重審查 + 安全修補；P1 接手 P2 子系統共同實作） |
 
 **git 狀態**：在 `main`（原 `master` 已改名）。本 session 全部工作（計畫 A/C/D + Demo UI + 計畫 C LLM 軌 + 各份 spec/plan/handoff）皆已 merge 並推上 `origin/main`；最後一個 feature merge 是 `425e1ae`（計畫 C LLM 軌 + uv.lock 同步），其後的 handoff 更新亦已推上。功能分支用完即刪。**已推上 GitHub（Private）**：`origin` → https://github.com/JoeW00/llm_security_term_project.git，`main` 追蹤 `origin/main`。注意推送需用 `JoeW00` gh 帳號（`gh auth switch --user JoeW00`）。**下次回來：先讀「下次從哪開始」段。**
 
@@ -128,8 +128,9 @@ tests/              # 124 個測試（A/C/D 全部 + C LLM 軌：reasoner_llm_fa
 
 ## 下次從哪開始（建議順序）
 
-**A/C/D 整合邊界 + 計畫 D Demo UI + 計畫 C 的真實 Anthropic 接線皆已完成；計畫 A 研究軌（微調 + 資料 + 消融 + 重訓）亦已跑完。剩下的工作：**
-1. **計畫 B**（唯一還沒做整合邊界的子系統）：組員 2 接續把 enrich/attack_mapping 換成真實威脅情資工具呼叫 + 用 `data/enterprise-attack.json` 做檢索式 MITRE 對應。可仿 A/C/D 的可注入介面做法。
+**A/B/C/D 四個整合邊界 + 計畫 D Demo UI + 計畫 C 的真實 Anthropic 接線 + 計畫 A 研究軌皆已完成。剩下的工作：**
+1. **合併計畫 B**：分支 `feat/plan-b-enrich-attack`（8 task 全綠、雙重審查過、156 測試 passed）尚未併入 `main`，待 review 後合併。spec/plan 在 `docs/superpowers/`（gitignore，需 `git add -f` 比照 A/C/D）。接 live：CLI/Demo 注入 `abuse_ch_enricher()`（`--group intel`）與 `RetrievalAttackMapper.from_stix('data/enterprise-attack.json')`；帶金鑰可加 AbuseIPDB/VT、出真實消融數字。
+2. **第 16 週團隊最終整合報告**（硬性截止）：全隊共同具名、一份統一文件，涵蓋系統設計 / 資安評估 / 架構限制。
 2. **計畫 A 研究軌**：✅ 已完成（LoRA 微調 + GGUF + `ollama create`、GUIDE 策展、`run_ablation.py` 四臂消融、類別平衡重訓）。結果見 `results/W15-P1-*`、報告 §3/§5/§6。仍可選：雲端 Haiku 臂、改用非匿名特徵資料集。
 3. **實跑 C/D 的 live 數字（需金鑰）**：`ANTHROPIC_API_KEY=... uv run --group llm python -m soc_agent run <alert> --llm` 已可直接跑真實推理。要出報告數字：把 live 圖／`anthropic_llm_client()`-backed reasoners 當 runner，跑 `eval/reasoning_eval.py`（verdict 準確率／rubric／收斂）、`eval/injection_eval.py` 或 `demo/controller.injection_report`（真實「防禦前後」注入操控率）、`eval/runtime_metrics.end_to_end_metrics`（延遲／迭代）。需標註資料集 + 網路 + 費用。
 
@@ -138,7 +139,7 @@ tests/              # 124 個測試（A/C/D 全部 + C LLM 軌：reasoner_llm_fa
 | 計畫 | 負責人 | 替換的 stub | 狀態 / 重點 |
 |---|---|---|---|
 | **A（P1）** | — | `nodes.ingest` + `nodes.triage` | ✅ 整合邊界 **+ 研究軌皆完成**（可注入 `Classifier`/`OllamaClassifier`/`eval/`；LoRA 微調、GUIDE 資料集、四臂消融、類別平衡重訓、注入量測，2026-05-30，見 `results/W15-P1-*`） |
-| **B（P2）** | 組員 2 | `nodes.enrich` + `nodes.attack_mapping` | 🟡 prototype 已起手：兩節點會吃輸入但仍回**確定性 mock**。下一步換成真實威脅情資工具呼叫（abuse.ch / AbuseIPDB）+ 用 `data/enterprise-attack.json` 做檢索式 MITRE 對應 |
+| **B（P2，P1 共同實作）** | 組員 2 + P1 | `nodes.enrich` + `nodes.attack_mapping` | ✅ 整合邊界完成（分支 `feat/plan-b-enrich-attack`，未合併）：可注入 `Enricher`（`AbuseChEnricher` 查 abuse.ch ThreatFox、IOC 外送過濾、預設 `StaticEnricher`）與 `AttackMapper`（`RetrievalAttackMapper` 對 STIX 做 BM25 檢索、預設 `KeywordAttackMapper`）+ `eval/`。剩：帶金鑰接 AbuseIPDB/VT、出真實消融數字 |
 | **C（P3）** | — | `nodes.investigate` + `nodes.playbook` + `nodes.critique` | ✅ 整合邊界 + 真實 Anthropic 接線完成（可注入推理器、`factory.anthropic_llm_client`/`llm_reasoners`、CLI `--llm`、Demo 切換、失敗退回韌性）。剩：帶金鑰實跑出評估數字 |
 | **D（P4）** | — | `nodes.human_approval` + `nodes.report` | ✅ 整合邊界 + Streamlit Demo UI 完成（可注入 `ApprovalPolicy`、`InterruptApprovalPolicy`、Markdown 報告、`eval/injection_eval.py`、`demo/`）。剩：接 live 後出真實注入數字／延遲基準 |
 

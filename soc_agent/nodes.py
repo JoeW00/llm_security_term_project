@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-import ipaddress
 import re
 from typing import Any
 
 from soc_agent.approval import ApprovalPolicy, AutoApprovePolicy
+from soc_agent.attack import AttackMapper, KeywordAttackMapper
 from soc_agent.classifier import Classifier, RuleBasedClassifier
+from soc_agent.enrichment import Enricher, StaticEnricher
 from soc_agent.reasoners.critic import DeterministicCritic
 from soc_agent.reasoners.investigator import RuleBasedInvestigator
 from soc_agent.reasoners.playbook import TemplatePlaybookGenerator
@@ -21,17 +22,10 @@ _DEFAULT_INVESTIGATOR = RuleBasedInvestigator()
 _DEFAULT_PLAYBOOK_GENERATOR = TemplatePlaybookGenerator()
 _DEFAULT_CRITIC = DeterministicCritic()
 _DEFAULT_APPROVAL_POLICY = AutoApprovePolicy()
-
-# 關鍵字 → MITRE ATT&CK 技術 ID 的最小對應表。計畫 B 會換成檢索式
-# STIX/MITRE 對應；此處刻意保持確定性與離線。
-_TECHNIQUE_RULES: tuple[tuple[tuple[str, ...], str], ...] = (
-    (("brute force", "failed login", "failed password", "authentication"), "T1110"),
-    (("valid account", "successful login", "compromised credential"), "T1078"),
-    (("powershell", "command", "script", "/bin/sh", "cmd.exe"), "T1059"),
-    (("malware", "trojan", "virus", "ransomware"), "T1204"),
-)
-# 無任何規則命中時的保底技術（Valid Accounts）。
-_DEFAULT_TECHNIQUE = "T1078"
+# attack_mapping 的預設對應器：確定性關鍵字對應。正式環境由 build_graph 注入 BM25 檢索。
+_DEFAULT_ATTACK_MAPPER = KeywordAttackMapper()
+# enrich 的預設情資增強器：確定性離線。正式環境由 build_graph 注入 abuse.ch 後端。
+_DEFAULT_ENRICHER = StaticEnricher()
 
 # 離線 IOC 萃取：從告警訊息抽取 IP / domain / hash。順序決定去重時的優先呈現。
 # domain 正則用「有界標籤」寫法（每段 ≤63 字、首尾為英數），避免巢狀量詞造成
@@ -53,15 +47,6 @@ def _extract_iocs(message: str) -> list[str]:
     return found
 
 
-def _looks_like_ip(value: str) -> bool:
-    """判斷字串是否為合法 IPv4/IPv6 位址。"""
-    try:
-        ipaddress.ip_address(value)
-    except ValueError:
-        return False
-    return True
-
-
 def ingest(state: IncidentState) -> dict[str, Any]:
     """驗證並正規化原始告警，合併欄位 IOC 與訊息中萃取的 IOC（去重）。"""
     alert = Alert.model_validate(state["alert"])
@@ -79,27 +64,12 @@ def triage(state: IncidentState, *, classifier: Classifier | None = None) -> dic
     return {"alert_type": result.alert_type, "severity": result.severity}
 
 
-def enrich(state: IncidentState) -> dict[str, Any]:
-    """STUB：為每個 IOC 產生一筆威脅情資。計畫 B 換成真實工具呼叫。
-
-    確定性、離線：依 IOC 是否為 IP 位址挑選對應的模擬供應商回應，並以
-    `state["iocs"]` 為鍵建立 `enrichment`。計畫 B 會改成呼叫
-    AbuseIPDB / VirusTotal 等服務。
-    """
-    print("--- NODE: ENRICH ---")
-    iocs = state.get("iocs", [])
-
-    enrichment: dict[str, Any] = {}
-    for ioc in iocs:
-        if _looks_like_ip(ioc):
-            enrichment[ioc] = {"vendor": "AbuseIPDB", "score": 85, "reports": 12}
-        else:
-            enrichment[ioc] = {"vendor": "VirusTotal", "positives": 5}
-
-    print(f"[*] Enriched IOCs: {list(enrichment)}")
-
+def enrich(state: IncidentState, *, enricher: Enricher | None = None) -> dict[str, Any]:
+    """為每個 IOC 取威脅情資。計畫 B：預設離線 StaticEnricher，正式環境注入 abuse.ch。"""
+    enricher = enricher or _DEFAULT_ENRICHER
+    results = enricher.enrich(state.get("iocs", []))
     # 只回傳本節點負責更新的鍵（iocs 由 ingest 決定，這裡不覆寫）。
-    return {"enrichment": enrichment}
+    return {"enrichment": {ioc: r.model_dump() for ioc, r in results.items()}}
 
 
 def investigate(
@@ -115,17 +85,10 @@ def investigate(
     }
 
 
-def attack_mapping(state: IncidentState) -> dict[str, Any]:
-    """STUB：依告警內容對應 MITRE ATT&CK 技術。計畫 B 換成檢索式對應。
-
-    確定性、離線：把告警類型、訊息與 IOC 串成一段文字，比對
-    `_TECHNIQUE_RULES` 關鍵字，回傳命中的技術 ID（依規則順序去重）。
-    無命中時回傳 `_DEFAULT_TECHNIQUE`。計畫 B 會換成本地 STIX/MITRE 檢索。
-    """
-    print("--- NODE: ATT&CK MAPPING ---")
-
+def _attack_query(state: IncidentState) -> str:
+    """把告警類型、類別、訊息與 IOC 串成檢索查詢文字（確定性）。"""
     alert = state.get("alert", {})
-    haystack = " ".join(
+    return " ".join(
         str(part)
         for part in (
             state.get("alert_type", ""),
@@ -133,20 +96,13 @@ def attack_mapping(state: IncidentState) -> dict[str, Any]:
             alert.get("message", ""),
             *state.get("iocs", []),
         )
-    ).lower()
+    )
 
-    techniques: list[str] = []
-    for keywords, technique in _TECHNIQUE_RULES:
-        if any(keyword in haystack for keyword in keywords) and technique not in techniques:
-            techniques.append(technique)
 
-    if not techniques:
-        techniques.append(_DEFAULT_TECHNIQUE)
-
-    print(f"[*] Mapped Techniques: {techniques}")
-
-    # 只回傳本節點負責更新的鍵。
-    return {"attack_techniques": techniques}
+def attack_mapping(state: IncidentState, *, mapper: AttackMapper | None = None) -> dict[str, Any]:
+    """依告警內容對應 MITRE ATT&CK 技術。計畫 B：預設關鍵字，正式環境注入 BM25 檢索。"""
+    mapper = mapper or _DEFAULT_ATTACK_MAPPER
+    return {"attack_techniques": mapper.map(_attack_query(state))}
 
 
 def playbook(state: IncidentState, *, generator: PlaybookGenerator | None = None) -> dict[str, Any]:
@@ -184,37 +140,3 @@ def report(state: IncidentState) -> dict[str, Any]:
     }
     data["markdown"] = render_markdown(data)
     return {"final_report": data}
-
-
-# 看你們需不需要這部分的給助教看 mockup，不需要的話就 comment 或刪掉謝謝
-if __name__ == "__main__":
-    # Initialize a fake state passed from the previous node (Triage)
-    print("MOCKUP TEST PREVIEW")
-
-    test_state: IncidentState = {
-        "alert": {
-            "raw_message": (
-                "Suspicious login from 192.168.1.100 and connection to malicious-domain.com"
-            )
-        },
-        "alert_type": "Credential Access",
-        "severity": "high",
-        "iocs": [],
-        "enrichment": {},
-        "attack_techniques": [],
-    }
-
-    # Run the enrich stub
-    updated_state_1 = enrich(test_state)
-
-    # Simulate LangGraph merging the state using dictionary updates
-    test_state.update(updated_state_1)
-
-    # Run the mapping stub
-    updated_state_2 = attack_mapping(test_state)
-
-    # Simulate LangGraph merging the state again
-    test_state.update(updated_state_2)
-
-    print("\n--- TEST COMPLETE ---")
-    print("If you see this, your node skeletons are working perfectly with TypedDict.")
