@@ -1,0 +1,63 @@
+{
+  "target": "alert_type",
+  "n": 1000,
+  "holdout_distribution": {"benign_positive": 632, "false_positive": 277, "true_positive": 91},
+  "note": "全本地、無金鑰。temperature=0。留出集自然分布（BP 基率 0.632）。severity 因 GUIDE 無真值而跳過。",
+  "arms": {
+    "rule_based": {
+      "model": "—",
+      "accuracy": 0.0,
+      "macro_f1": 0.0,
+      "per_class_f1_grade": {"benign_positive": 0.0, "false_positive": 0.0, "true_positive": 0.0},
+      "comment": "回傳 category（exfiltration/malware/...），永遠不等於 grade 標籤 → 全 0。沿用 partial 檔結論。"
+    },
+    "zero_shot_local_base": {
+      "model": "qwen2.5:3b",
+      "accuracy": 0.100,
+      "macro_f1": 0.078,
+      "per_class_f1": {
+        "benign_positive": 0.0619,
+        "false_positive": 0.0279,
+        "true_positive": 0.1449
+      },
+      "confusion": {
+        "benign_positive": {"benign_positive": 21, "false_positive": 4, "true_positive": 607},
+        "false_positive": {"benign_positive": 11, "false_positive": 4, "true_positive": 262},
+        "true_positive": {"benign_positive": 14, "false_positive": 2, "true_positive": 75}
+      },
+      "comment": "把絕大多數判為 true_positive（944/1000 預測 TP）→ 警報狂，在 BP 多數留出集上 acc 僅 0.10。"
+    },
+    "zero_shot_local_large": {
+      "model": "qwen2.5:32b",
+      "accuracy": 0.095,
+      "macro_f1": 0.070,
+      "per_class_f1": {
+        "benign_positive": 0.0,
+        "false_positive": 0.0473,
+        "true_positive": 0.1642
+      },
+      "confusion": {
+        "benign_positive": {"benign_positive": 0, "false_positive": 9, "true_positive": 623},
+        "false_positive": {"benign_positive": 0, "false_positive": 7, "true_positive": 270},
+        "true_positive": {"benign_positive": 0, "false_positive": 3, "true_positive": 88}
+      },
+      "comment": "比 3b 更極端：幾乎全判 true_positive（981/1000），0 個 benign_positive 預測。放大模型沒幫助、反而更退化。"
+    },
+    "finetuned_local": {
+      "model": "soc-triage (Qwen2.5-3B + LoRA)",
+      "accuracy": 0.635,
+      "macro_f1": 0.273,
+      "per_class_f1": {
+        "benign_positive": 0.7765,
+        "false_positive": 0.0415,
+        "true_positive": 0.0
+      },
+      "confusion": {
+        "benign_positive": {"benign_positive": 629, "false_positive": 3, "true_positive": 0},
+        "false_positive": {"benign_positive": 271, "false_positive": 6, "true_positive": 0},
+        "true_positive": {"benign_positive": 88, "false_positive": 3, "true_positive": 0}
+      },
+      "comment": "坍縮成多數類 benign_positive（900/1000 預測 BP），TP 一次都沒預測（TP-F1=0）。高 acc 來自背多數類。"
+    }
+  }
+}
