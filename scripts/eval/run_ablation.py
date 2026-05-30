@@ -1,9 +1,11 @@
 """消融評估（補報告 §6.3）：規則式 vs 本地零樣本(同基底/大模型) vs 微調本地。
 
 **預設全本地、離線**：需 ollama serve 並備妥三個模型——`soc-triage`（§B 微調產物）、
-`qwen2.5:3b`（同基底未微調）、`qwen2.5:32b`（本地能力上界）。所有臂走相同的 GRADE
-prompt + Pydantic 驗證 + 退回規則式，確保公平比較。告警**不送出企業邊界**，符合自託管
-SOC 設計。雲端臂為**可選**：設了 `ANTHROPIC_API_KEY` 才額外加入（會把告警送至外部 API）。
+`qwen2.5:3b`（同基底未微調）、`qwen2.5:32b`（本地能力上界）。零樣本臂用 `GRADE_SYSTEM_PROMPT`、
+微調臂 `soc-triage` 用共享 `TRIAGE_SYSTEM_PROMPT`；三個 LLM 臂共用 `build_triage_prompt`
+建構 + Pydantic 驗證 + 退回規則式，`rule_based` 不用 prompt、直接取欄位，確保公平比較。
+告警**不送出企業邊界**，符合自託管 SOC 設計。雲端臂為**可選**：設了 `ANTHROPIC_API_KEY`
+才額外加入（會把告警送至外部 API）。
 本腳本為手動評估，絕不進 pytest。
 
 用法（Spark，全本地）：
@@ -124,7 +126,8 @@ def main() -> None:
         raise SystemExit(
             f"{HOLDOUT} 為空：curate_guide.py 可能沒對到 GUIDE 欄位（檢查 GRADE_KEYS/header）。"
         )
-    # 預設全本地、離線，告警不送出企業邊界。四臂皆走相同 GRADE prompt + 驗證 + 退路，確保公平。
+    # 預設全本地、離線，告警不送出企業邊界。零樣本臂用 GRADE prompt、微調臂用 TRIAGE prompt；
+    # 三個 LLM 臂共用 build_triage_prompt 建構 + 驗證 + 退路，rule_based 直接取欄位，確保公平。
     classifiers: dict[str, Classifier] = {
         "rule_based": RuleBasedClassifier(),  # 離線下限基準
         # 同基底未微調：隔離「微調」這唯一變因（與 finetuned_local 同為 Qwen2.5-3B）。

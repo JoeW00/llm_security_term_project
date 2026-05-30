@@ -3,8 +3,9 @@
 > 來源：`scripts/eval/run_ablation.py`（**全本地、無金鑰**，告警不送出企業邊界）。
 > 留出集 `data/triage/holdout.jsonl`（1,000 筆，自然分布）。產生時間：2026-05-30。
 > 模型：`qwen2.5:3b`（同基底未微調）、`qwen2.5:32b`（本地能力上界代理）、
-> `soc-triage`（§B 的 Qwen2.5-3B + LoRA 微調產物）。四臂共用同一 GRADE prompt
-> + Pydantic 驗證 + 失敗退回規則式，確保公平比較。temperature=0（確定性）。
+> `soc-triage`（§B 的 Qwen2.5-3B + LoRA 微調產物）。零樣本臂用 `GRADE_SYSTEM_PROMPT`、
+> 微調臂用共享 `TRIAGE_SYSTEM_PROMPT`；三個 LLM 臂共用 `build_triage_prompt` 建構 + Pydantic 驗證
+> + 失敗退回規則式，`rule_based` 不用 prompt、直接取欄位，確保公平比較。temperature=0（確定性）。
 > 留出集 grade 分布：benign_positive 632 / false_positive 277 / true_positive 91（BP 基率 0.632）。
 
 ## alert_type（三類：true_positive / benign_positive / false_positive）
@@ -28,7 +29,7 @@
   但 BP/FP 幾乎全被誤判成 TP → 在 BP 多數的留出集上 acc 僅 0.10。
 - **zero_shot 32b**：比 3b **更極端**——**981/1000** 判為 `true_positive`，**0 個** benign_positive 預測
   （BP F1=0）。放大模型不但沒幫助、反而更退化。
-- **finetuned**：坍縮成多數類 `benign_positive`（**900/1000** 預測 BP），**TP 一次都沒預測**
+- **finetuned**：坍縮成多數類 `benign_positive`（**988/1000** 預測 BP），**TP 一次都沒預測**
   （TP F1=0）。高 acc（0.635）純粹來自背多數類。
 
 ## 解讀（回答兩個科學問題）
@@ -37,8 +38,8 @@
 
 兩者**各自坍縮到相反的退化解**，但沒有一個學會真正的分流：
 
-- **未微調 base**：坍縮成「**全部都是 true_positive**」（警報狂）→ acc 0.10、macro-F1 0.078。
-- **微調後**：坍縮成「**全部都是 benign_positive**」（多數類）→ acc 0.635、macro-F1 0.273。
+- **未微調 base**：坍縮成「**幾乎全判 true_positive**」（944/1000，警報狂）→ acc 0.10、macro-F1 0.078。
+- **微調後**：坍縮成「**幾乎全判 benign_positive**」（988/1000，多數類）→ acc 0.635、macro-F1 0.273。
 
 也就是說 **LoRA 微調確實改變了行為**：它把模型從「無差別警報」拉去「背多數類先驗」，
 帳面 acc／macro-F1 都變高（0.078→0.273），**但這個 macro-F1 提升完全來自學會 benign_positive
@@ -50,21 +51,21 @@
 **強烈指向資料集限制。** 把模型放大到 32B **沒有改善、反而更差**：
 
 - 32B（macro-F1 0.070 / acc 0.095）比同 prompt 的 3B base（0.078 / 0.100）**還低**，
-  退化得更徹底（全判 TP、0 個 BP）。
+  退化得更徹底（981/1000 判 TP、0 個 BP）。
 - 若是「小模型容量不足」，放大應該要好轉；這裡放大反而更糟 → 代表瓶頸**不在模型容量**，
   而在**特徵本身沒有可分類的訊號**。GUIDE 的 message/indicators 是匿名整數 ID，零樣本模型
-  讀不到語意線索，只能退回各自的預設姿態（這裡是「全部當成攻擊」）。
+  讀不到語意線索，只能退回各自的預設姿態（這裡是「傾向全當成攻擊」）。
 
 ## 結論
 
-1. **沒有任何一臂學會真正的三類分流**：四臂的 `true_positive` F1 不是 0 就是 ≤0.16，
-   且每臂都坍縮到某個退化解。
+1. **沒有任何一臂學會真正的三類分流**：四臂的 `true_positive` F1 不是 0 就是 ≤0.164，
+   且三個 LLM 臂各自坍縮到某個退化解（`rule_based` 為非 grade 標籤的確定性下限，非坍縮）。
 2. **微調未帶來真實分流能力**：`finetuned_local` 的高 acc/macro-F1 完全來自背多數類
    `benign_positive`（TP F1=0），不是學會偵測真陽性。
-3. **資料集是主要瓶頸（非模型容量）**：放大到 32B 反而更差，證明匿名特徵
-   （message/indicators 為不透明整數 ID、只有 category 帶弱訊號）＋ 類別不平衡，
-   使可達上界極低。
+3. **資料集是主要瓶頸（強烈指向，非模型容量）**：放大到 32B 反而更差，強烈指向匿名特徵
+   （message/indicators 為不透明整數 ID、只有 category 帶弱訊號）＋ 類別不平衡使可達上界極低
+   （單一 32B 零樣本對照為強佐證，非鐵證；prompt/校準效應仍可能有影響）。
 4. **改善方向**：(a) 改用**非匿名**特徵的資料集（讓 message/indicators 真正帶語意）——
    這是天花板問題的根因；(b) 若維持此資料集，訓練時對少數類加權／過採樣
    （見《執行指南》§A.3 類別平衡重訓），至少避免坍縮成單一類；(c) 零樣本臂可加入
-   few-shot 範例與機率校準，緩解「全判 TP」的偏置。
+   few-shot 範例與機率校準，緩解「傾向全判 TP」的偏置。

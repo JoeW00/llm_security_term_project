@@ -5,73 +5,49 @@
 
 ---
 
-## ⏭️ 下次在 Spark 要做的事：W15-P1 §C 全本地消融補跑（最優先）
+## ✅ 已完成（2026-05-30）：W15-P1 §C 全本地消融 + 類別平衡重訓
 
-> **背景**：W15-P1 個人進度報告（`docs/reports/2026-W15-P1-告警分流-個人進度報告.md`，**本機限定、
-> gitignore 不進版控**）§6.3 消融原本缺第三臂。**決策（2026-05-30）：把原「雲端零樣本 Claude Haiku」
-> 臂改為全本地兩臂**——理由是真實 SOC 工具把原始告警送外部雲端 API 本身是資料外洩／信任邊界疑慮，
-> 全本地更貼合自託管 SOC 設計，且離線、免金鑰。`scripts/eval/run_ablation.py` 已改好（見下「已就緒」）。
+> 原「下次在 Spark 補跑 §C」任務**已完成**。資料策展、LoRA 微調、完整四臂消融、類別平衡重訓、
+> 注入量測全部在 DGX Spark 跑出真實數字，存檔在 `results/W15-P1-*`（已進版控），並回填進
+> W15-P1 個人進度報告（`docs/reports/2026-W15-P1-告警分流-個人進度報告.md`，**本機限定、
+> gitignore 不進版控**）。報告經 Codex 多輪審核、零錯誤定稿。
 
-### 要回答的兩個科學問題（兩臂各管一個）
+### 結果摘要（`alert_type`，holdout 1,000 筆，自然分布）
 
-1. **同基底 `qwen2.5:3b`（未微調）** → 隔離「微調」單一變因（與 `soc-triage` 同為 Qwen2.5-3B，
-   差別僅 LoRA）。若它也坍縮成多數類 → 證明**微調沒把模型變更差**，坍縮源自資料。
-2. **大模型 `qwen2.5:32b`** → 離線「能力上界」代理。若連它在匿名特徵上也接近 63% 基率／低 macro-F1
-   → 確認是**資料集限制**（匿名特徵 + 類別不平衡）；若明顯較高 → 屬**微調／小模型容量**問題。
+| 臂 | accuracy | macro-F1 | TP-F1 |
+|----|----------|----------|-------|
+| `rule_based` | 0.000 | 0.000 | 0.000 |
+| `zero_shot_local_base`（`qwen2.5:3b`） | 0.100 | 0.078 | 0.145 |
+| `zero_shot_local_large`（`qwen2.5:32b`） | 0.095 | 0.070 | 0.164 |
+| `finetuned_local`（`soc-triage`） | 0.635 | 0.273 | 0.000 |
 
-### 已就緒（本機已改好並（待）推上）
+**結論**：三個 LLM 臂各自坍縮到不同退化解；放大到 32B 反而更差 → 強烈指向**資料集限制**
+（GUIDE 匿名特徵），非模型容量。**類別平衡重訓**（`soc-triage-balanced`，訓練集 TP/BP/FP 各 2,516）
+把 `true_positive` 召回從 **0 → 0.429**、macro-F1 0.273 → 0.382，證明坍縮是不平衡的人為現象、可修正。
+存檔：`results/W15-P1-C-full-ablation.*`、`results/W15-P1-B2-balanced-retrain.*`。
 
-- `scripts/eval/run_ablation.py`：新增 `OllamaChat`（ChatClient，`complete`）+ 兩個本地零樣本臂
-  `zero_shot_local_base`（`qwen2.5:3b`）、`zero_shot_local_large`（`qwen2.5:32b`），**預設即跑、
-  無需金鑰**；雲端臂改為**可選**（設了 `ANTHROPIC_API_KEY` 才加）。模型名可用環境變數覆寫
-  （`OLLAMA_BASE_MODEL` / `OLLAMA_LARGE_MODEL` / `OLLAMA_MODEL`）。四臂共用 `GRADE_SYSTEM_PROMPT`
-  （明列 TP/BP/FP，使零樣本臂公平知道標籤空間）+ Pydantic 驗證 + 退回規則式。
-- 報告 §6.3 已預先改框架（命名／角色／診斷措辭改成本地兩臂、表格留兩列 `⬜ 待跑`）。
-
-### Spark 執行步驟（逐步照做）
+### 可重現指令（已執行；保留供日後重跑）
 
 ```bash
-# 0) 取得最新程式（本機改好的 run_ablation.py）。git pull 不需切帳號。
-cd <專案根>
-git pull            # 確認抓到 run_ablation.py 的本地零樣本臂改動
-
-# 1) 前置：留出集與微調模型須已在（§A 策展 + §B ollama create 的產物）
-ls data/triage/holdout.jsonl        # 1,000 筆；不在版控，須是 Spark 上 §A 既有產物
-ollama list | grep soc-triage       # §B 已建立的微調模型
-
-# 2) 起 ollama、拉兩個零樣本模型（首次 32b 約 ~20GB；Spark 128GB 統一記憶體可跑 q4）
 ollama serve &
-ollama pull qwen2.5:3b
-ollama pull qwen2.5:32b
-
-# 3) 跑完整消融（全本地、免金鑰）。存純文字 + 之後整理成 md/json 存檔。
+ollama pull qwen2.5:3b && ollama pull qwen2.5:32b   # 32b 首次約 ~20GB
 uv run --group eval python scripts/eval/run_ablation.py | tee results/W15-P1-C-full-ablation.txt
-#   預期輸出：=== alert_type === 後，每臂一行 acc=/macroF1= + per_class_f1 + confusion；
-#   severity 會印「跳過」（GUIDE 無嚴重度真值）。
+# 類別平衡重訓：scripts/finetune/build_dataset.py --balanced → train_lora.py → ollama create soc-triage-balanced
 ```
 
-### 跑完後（回填與存檔）
+模型名可用環境變數覆寫：`OLLAMA_BASE_MODEL` / `OLLAMA_LARGE_MODEL` / `OLLAMA_MODEL`。
+雲端 Claude Haiku 臂為**可選**（設 `ANTHROPIC_API_KEY` 才加，會把告警送至外部 API），本輪未跑。
 
-1. 把 `rule_based` / `zero_shot_local_base` / `zero_shot_local_large` / `finetuned_local` 四臂的
-   acc、macro-F1、混淆矩陣整理成 `results/W15-P1-C-full-ablation.md`（＋ `.json`），格式仿
-   既有的 `results/W15-P1-C-partial-ablation.md`。**這些 results/ 檔有進版控**。
-2. **依兩個診斷問題寫結論**：base 是否也坍縮（微調有無傷害）、32b 是否仍接近基率（資料限制 vs 容量）。
-3. `git add results/W15-P1-C-full-ablation.*` → commit → **push（須 `gh auth switch --user JoeW00`）**。
-4. 回**本機** Mac：`git pull` 取得 results；把兩列數字 + 結論貼回報告 §6.3（報告是本機限定檔，
-   不在 Spark）。報告 §6.3 的 `⬜ 待跑` 兩列、§1 更新說明、§9、§10、§11 的「唯一未完項」屆時改成已完成。
+### 仍可選的延伸（非必做）
 
-### 可選加分（非必需）
-
-- **雲端臂對照**：在 Spark `export ANTHROPIC_API_KEY=...` 後重跑同指令（會多出 `zero_shot_cloud`），
-  與本地大模型對比。注意：會把告警送至外部 Anthropic API。
-- **類別平衡重訓**：對訓練集重採樣成 TP/BP/FP 近等量再微調（《執行指南》§A.3），看 `true_positive`
-  召回是否改善（需再用一次 Spark GPU）。
+- 雲端 Claude Haiku 臂對照（需金鑰）。
+- 改用**非匿名特徵**的資料集突破天花板（§C 強烈指向匿名特徵是主要瓶頸）。
 
 ---
 
 ## 一句話現況
 
-LangGraph 版「自主式 SOC Tier-1 事件回應代理」的**基礎骨架（計畫 0）已完成並合併到 `main`**，**計畫 A、C、D 三個整合邊界 + 計畫 D Streamlit Demo UI + 計畫 C 的真實 Anthropic LLM 接線都已完成並合併**，124 個測試全綠（離線、免金鑰）、CLI 可跑（含 `--llm`）、Demo 可互動展示（含 live LLM 切換）。唯一剩下的子系統是計畫 B（組員 2 進行中）；計畫 A 的 LoRA 微調訓練軌與「實跑 live 出評估數字」是需金鑰／資料的手動步驟（邊界皆已就緒、下游零改動）。
+LangGraph 版「自主式 SOC Tier-1 事件回應代理」的**基礎骨架（計畫 0）已完成並合併到 `main`**，**計畫 A、C、D 三個整合邊界 + 計畫 D Streamlit Demo UI + 計畫 C 的真實 Anthropic LLM 接線都已完成並合併**，124 個測試全綠（離線、免金鑰）、CLI 可跑（含 `--llm`）、Demo 可互動展示（含 live LLM 切換）。**計畫 A 的研究軌（LoRA 微調 + GUIDE 資料集 + 完整四臂消融 + 類別平衡重訓 + 注入量測）已於 2026-05-28～30 在 DGX Spark 跑完真實數字**（見頂部「W15-P1 §C」段），結果存 `results/W15-P1-*`。唯一剩下的子系統是計畫 B（組員 2 進行中）。
 
 ---
 
@@ -152,16 +128,16 @@ tests/              # 124 個測試（A/C/D 全部 + C LLM 軌：reasoner_llm_fa
 
 ## 下次從哪開始（建議順序）
 
-**A/C/D 整合邊界 + 計畫 D Demo UI + 計畫 C 的真實 Anthropic 接線皆已完成。剩下的工作都是「接真實後端／資料／訓練」與「實跑出數字」——邊界已就緒、下游零改動：**
+**A/C/D 整合邊界 + 計畫 D Demo UI + 計畫 C 的真實 Anthropic 接線皆已完成；計畫 A 研究軌（微調 + 資料 + 消融 + 重訓）亦已跑完。剩下的工作：**
 1. **計畫 B**（唯一還沒做整合邊界的子系統）：組員 2 接續把 enrich/attack_mapping 換成真實威脅情資工具呼叫 + 用 `data/enterprise-attack.json` 做檢索式 MITRE 對應。可仿 A/C/D 的可注入介面做法。
-2. **計畫 A LLM／訓練軌**：LoRA 微調 + GGUF + `ollama create`、整理 GUIDE 資料集到 `data/triage/`、注入 `OllamaClassifier`、跑 `eval/triage_eval.py` 出消融數字（計畫 A spec §8）。這是最後一個還沒接 live 的軌。
+2. **計畫 A 研究軌**：✅ 已完成（LoRA 微調 + GGUF + `ollama create`、GUIDE 策展、`run_ablation.py` 四臂消融、類別平衡重訓）。結果見 `results/W15-P1-*`、報告 §3/§5/§6。仍可選：雲端 Haiku 臂、改用非匿名特徵資料集。
 3. **實跑 C/D 的 live 數字（需金鑰）**：`ANTHROPIC_API_KEY=... uv run --group llm python -m soc_agent run <alert> --llm` 已可直接跑真實推理。要出報告數字：把 live 圖／`anthropic_llm_client()`-backed reasoners 當 runner，跑 `eval/reasoning_eval.py`（verdict 準確率／rubric／收斂）、`eval/injection_eval.py` 或 `demo/controller.injection_report`（真實「防禦前後」注入操控率）、`eval/runtime_metrics.end_to_end_metrics`（延遲／迭代）。需標註資料集 + 網路 + 費用。
 
 各子系統替換對應 stub 節點，彼此獨立：
 
 | 計畫 | 負責人 | 替換的 stub | 狀態 / 重點 |
 |---|---|---|---|
-| **A（P1）** | — | `nodes.ingest` + `nodes.triage` | ✅ 整合邊界完成（可注入 `Classifier`、`OllamaClassifier`、`eval/`）。剩研究軌：LoRA 微調 + 資料集 + 真實消融數字 |
+| **A（P1）** | — | `nodes.ingest` + `nodes.triage` | ✅ 整合邊界 **+ 研究軌皆完成**（可注入 `Classifier`/`OllamaClassifier`/`eval/`；LoRA 微調、GUIDE 資料集、四臂消融、類別平衡重訓、注入量測，2026-05-30，見 `results/W15-P1-*`） |
 | **B（P2）** | 組員 2 | `nodes.enrich` + `nodes.attack_mapping` | 🟡 prototype 已起手：兩節點會吃輸入但仍回**確定性 mock**。下一步換成真實威脅情資工具呼叫（abuse.ch / AbuseIPDB）+ 用 `data/enterprise-attack.json` 做檢索式 MITRE 對應 |
 | **C（P3）** | — | `nodes.investigate` + `nodes.playbook` + `nodes.critique` | ✅ 整合邊界 + 真實 Anthropic 接線完成（可注入推理器、`factory.anthropic_llm_client`/`llm_reasoners`、CLI `--llm`、Demo 切換、失敗退回韌性）。剩：帶金鑰實跑出評估數字 |
 | **D（P4）** | — | `nodes.human_approval` + `nodes.report` | ✅ 整合邊界 + Streamlit Demo UI 完成（可注入 `ApprovalPolicy`、`InterruptApprovalPolicy`、Markdown 報告、`eval/injection_eval.py`、`demo/`）。剩：接 live 後出真實注入數字／延遲基準 |
@@ -183,7 +159,7 @@ tests/              # 124 個測試（A/C/D 全部 + C LLM 軌：reasoner_llm_fa
 
 ## 待辦 / 前瞻備註（給計畫 B 與 A/C/D 的 LLM／Demo／資料軌實作者）
 
-- **計畫 A 研究軌注意**：整合邊界已就緒，接微調模型時 (1) 把訓練好的模型 `ollama create` 後，在 CLI／組裝處注入 `OllamaClassifier(ollama_client, "soc-triage")`（目前 `build_graph()` 預設規則式）；(2) 評估資料放 `data/triage/*.jsonl`（格式：每行 `{"alert": {...}, "expected": {"alert_type":..., "severity":...}}`）；(3) 用 `eval/triage_eval.py` 的 `ablation()` 跑微調 vs `ZeroShotClassifier` 消融；(4) `ClassificationResult.confidence` 目前不寫入 `IncidentState`（只供評估）——若路由要用，再走「只增不改」加欄位。(5) 提醒：`ingest` 的 IOC regex 已防 ReDoS（有界標籤 + `_MAX_MESSAGE_LEN` 截斷），改 regex 時別退回巢狀量詞。
+- **計畫 A 研究軌注意（✅ 已完成，以下為實作紀錄與供日後接線參考）**：接微調模型時 (1) 把訓練好的模型 `ollama create` 後，在 CLI／組裝處注入 `OllamaClassifier(ollama_client, "soc-triage")`（目前 `build_graph()` 預設規則式）；(2) 評估資料放 `data/triage/*.jsonl`（格式：每行 `{"alert": {...}, "expected": {"alert_type":..., "severity":...}}`；`expected.severity` 選用，GUIDE 衍生資料因無真值而省略）；(3) 用 `eval/triage_eval.py` 的 `ablation()` 跑微調 vs 本地零樣本（`run_ablation.py`，雲端 `ZeroShotClassifier` 可選）消融；(4) `ClassificationResult.confidence` 目前不寫入 `IncidentState`（只供評估）——若路由要用，再走「只增不改」加欄位。(5) 提醒：`ingest` 的 IOC regex 已防 ReDoS（有界標籤 + `_MAX_MESSAGE_LEN` 截斷），改 regex 時別退回巢狀量詞。
 - **計畫 B 注意**：`enrich` / `attack_mapping` 雖然已會吃輸入，但回的是寫死的確定性 mock；換成真實工具呼叫時，記得 (1) 外部 API 結果落地快取以利重現、(2) 測試維持離線（patch / 注入），(3) `attack_techniques` 目前存「裸技術 ID」（如 `"T1110"`）以通過 `"T1110" in list` 的成員檢查——若要改成 `"T1110 - Brute Force"` 形式，需同步調整 `tests/test_cli.py`。STIX 來源已在 `data/enterprise-attack.json`。可參考計畫 A 的「可注入介面 + 確定性預設 + 離線測試」做法。
 - **計畫 C LLM 軌（已完成接線）**：真實後端已接好——`soc_agent/reasoners/factory.py` 的 `anthropic_llm_client()`（讀 `ANTHROPIC_API_KEY`、延遲 import）+ `llm_reasoners(client)`，CLI `--llm`、Demo「使用 live LLM」勾選框皆可用。韌性已補：任何 live 失敗（網路／SDK／空回應）→ `LLMClientError` → reasoner 退回確定性預設（不崩潰）。剩下只差**帶金鑰實跑出評估數字**（見上「下次從哪開始」#3）。仍適用的設計守則：`LLMCritic` 的 `complete` 由 rubric 門檻（`_RUBRIC_PASS=4`）重算、不信任模型旗標；playbook 重生的 critique 回饋在 `<<<CONTEXT>>>` 區段內（安全修補），別搬回區外；`LLMClientError` 訊息保持靜態（別回填 SDK 字串）。
 - **計畫 D Demo UI（已完成）+ live 切換**：互動 Demo 在 `demo/`（`uv run --group demo streamlit run demo/app.py`）；編排在不依賴 streamlit 的 `demo/controller.py`（`IncidentSession`）。**live LLM 已可在 Demo 直接切換**：勾「使用 live LLM」會由 `app.py` 呼叫工廠建 reasoners 傳給 `IncidentSession(reasoners=…)`（同時 `--group demo --group llm`、設好金鑰）。守則不變：(1) UI 的人工核准送 `Command(resume={"approved": bool, "reason": str})`，`approved` 必須是**真 bool**（strict 驗證，`"true"`/`1` 會被當畸形而保守駁回）；(2) `InterruptApprovalPolicy.decide` 在 `interrupt()` 前無副作用、可安全 replay——**未來若把真實處置動作放進 human_approval，務必擺在 `interrupt()` 之後**；(3) 真實注入「防禦前後」數字：把 runner 換成 live 圖。

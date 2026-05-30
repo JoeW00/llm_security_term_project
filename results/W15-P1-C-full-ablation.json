@@ -57,7 +57,7 @@
         "false_positive": {"benign_positive": 271, "false_positive": 6, "true_positive": 0},
         "true_positive": {"benign_positive": 88, "false_positive": 3, "true_positive": 0}
       },
-      "comment": "坍縮成多數類 benign_positive（900/1000 預測 BP），TP 一次都沒預測（TP-F1=0）。高 acc 來自背多數類。"
+      "comment": "坍縮成多數類 benign_positive（988/1000 預測 BP），TP 一次都沒預測（TP-F1=0）。高 acc 來自背多數類。"
     }
   }
 }
