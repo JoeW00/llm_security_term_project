@@ -1,0 +1,90 @@
+{
+  "model": "qwen2.5:7b",
+  "n_samples": 6,
+  "verdict": {
+    "deterministic": {
+      "accuracy": 0.5,
+      "precision": 0.5,
+      "recall": 1.0
+    },
+    "local_llm": {
+      "accuracy": 0.8333333333333334,
+      "precision": 1.0,
+      "recall": 1.0
+    }
+  },
+  "convergence": {
+    "deterministic": {
+      "mean_iterations": 2.0,
+      "pct_converged": 1.0
+    },
+    "local_llm": {
+      "mean_iterations": 1.3333333333333333,
+      "pct_converged": 1.0
+    },
+    "cap": 3
+  },
+  "playbook_rubric_local_llm_judge": {
+    "coverage": 5,
+    "executability": 5,
+    "safety": 5
+  },
+  "latency_seconds_mean": {
+    "deterministic": 0.003749236163760846,
+    "local_llm": 7.507727055335029
+  },
+  "verdict_pairs": {
+    "deterministic": [
+      [
+        "true_positive",
+        "true_positive"
+      ],
+      [
+        "true_positive",
+        "true_positive"
+      ],
+      [
+        "true_positive",
+        "true_positive"
+      ],
+      [
+        "false_positive",
+        "true_positive"
+      ],
+      [
+        "false_positive",
+        "true_positive"
+      ],
+      [
+        "false_positive",
+        "true_positive"
+      ]
+    ],
+    "local_llm": [
+      [
+        "true_positive",
+        "true_positive"
+      ],
+      [
+        "true_positive",
+        "true_positive"
+      ],
+      [
+        "true_positive",
+        "true_positive"
+      ],
+      [
+        "false_positive",
+        "false_positive"
+      ],
+      [
+        "false_positive",
+        "unknown"
+      ],
+      [
+        "false_positive",
+        "false_positive"
+      ]
+    ]
+  }
+}
