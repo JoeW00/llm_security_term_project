@@ -7,6 +7,7 @@ import re
 from typing import Any
 
 from soc_agent.approval import ApprovalPolicy, AutoApprovePolicy
+from soc_agent.attack import AttackMapper, KeywordAttackMapper
 from soc_agent.classifier import Classifier, RuleBasedClassifier
 from soc_agent.reasoners.critic import DeterministicCritic
 from soc_agent.reasoners.investigator import RuleBasedInvestigator
@@ -21,17 +22,8 @@ _DEFAULT_INVESTIGATOR = RuleBasedInvestigator()
 _DEFAULT_PLAYBOOK_GENERATOR = TemplatePlaybookGenerator()
 _DEFAULT_CRITIC = DeterministicCritic()
 _DEFAULT_APPROVAL_POLICY = AutoApprovePolicy()
-
-# 關鍵字 → MITRE ATT&CK 技術 ID 的最小對應表。計畫 B 會換成檢索式
-# STIX/MITRE 對應；此處刻意保持確定性與離線。
-_TECHNIQUE_RULES: tuple[tuple[tuple[str, ...], str], ...] = (
-    (("brute force", "failed login", "failed password", "authentication"), "T1110"),
-    (("valid account", "successful login", "compromised credential"), "T1078"),
-    (("powershell", "command", "script", "/bin/sh", "cmd.exe"), "T1059"),
-    (("malware", "trojan", "virus", "ransomware"), "T1204"),
-)
-# 無任何規則命中時的保底技術（Valid Accounts）。
-_DEFAULT_TECHNIQUE = "T1078"
+# attack_mapping 的預設對應器：確定性關鍵字對應。正式環境由 build_graph 注入 BM25 檢索。
+_DEFAULT_ATTACK_MAPPER = KeywordAttackMapper()
 
 # 離線 IOC 萃取：從告警訊息抽取 IP / domain / hash。順序決定去重時的優先呈現。
 # domain 正則用「有界標籤」寫法（每段 ≤63 字、首尾為英數），避免巢狀量詞造成
@@ -115,17 +107,10 @@ def investigate(
     }
 
 
-def attack_mapping(state: IncidentState) -> dict[str, Any]:
-    """STUB：依告警內容對應 MITRE ATT&CK 技術。計畫 B 換成檢索式對應。
-
-    確定性、離線：把告警類型、訊息與 IOC 串成一段文字，比對
-    `_TECHNIQUE_RULES` 關鍵字，回傳命中的技術 ID（依規則順序去重）。
-    無命中時回傳 `_DEFAULT_TECHNIQUE`。計畫 B 會換成本地 STIX/MITRE 檢索。
-    """
-    print("--- NODE: ATT&CK MAPPING ---")
-
+def _attack_query(state: IncidentState) -> str:
+    """把告警類型、類別、訊息與 IOC 串成檢索查詢文字（確定性）。"""
     alert = state.get("alert", {})
-    haystack = " ".join(
+    return " ".join(
         str(part)
         for part in (
             state.get("alert_type", ""),
@@ -133,20 +118,13 @@ def attack_mapping(state: IncidentState) -> dict[str, Any]:
             alert.get("message", ""),
             *state.get("iocs", []),
         )
-    ).lower()
+    )
 
-    techniques: list[str] = []
-    for keywords, technique in _TECHNIQUE_RULES:
-        if any(keyword in haystack for keyword in keywords) and technique not in techniques:
-            techniques.append(technique)
 
-    if not techniques:
-        techniques.append(_DEFAULT_TECHNIQUE)
-
-    print(f"[*] Mapped Techniques: {techniques}")
-
-    # 只回傳本節點負責更新的鍵。
-    return {"attack_techniques": techniques}
+def attack_mapping(state: IncidentState, *, mapper: AttackMapper | None = None) -> dict[str, Any]:
+    """依告警內容對應 MITRE ATT&CK 技術。計畫 B：預設關鍵字，正式環境注入 BM25 檢索。"""
+    mapper = mapper or _DEFAULT_ATTACK_MAPPER
+    return {"attack_techniques": mapper.map(_attack_query(state))}
 
 
 def playbook(state: IncidentState, *, generator: PlaybookGenerator | None = None) -> dict[str, Any]:
