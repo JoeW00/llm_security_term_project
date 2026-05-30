@@ -22,6 +22,8 @@ llm = ["anthropic>=0.40"]
 # transformers/peft/trl）不放這裡：DGX Spark 為 aarch64+CUDA，torch 須走 NVIDIA
 # 提供的輪子，見《執行指南》§B 的 DGX 安裝步驟，避免 uv sync 在此拉錯 wheel。
 eval = ["ollama>=0.3"]
+# 計畫 B 情資增強：abuse.ch HTTP client。延遲 import，核心測試無需安裝此群組。
+intel = ["httpx>=0.27"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
