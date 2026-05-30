@@ -20,19 +20,19 @@ ROOT = Path(__file__).resolve().parents[2]
 STIX = ROOT / "data" / "enterprise-attack.json"
 
 # 標註樣本：真實 SOC 告警語句 → 預期父技術 ID。涵蓋 12 種戰術／技術。
-SAMPLES: list[dict[str, str]] = [
-    {"query": "multiple failed SSH login attempts, brute force from single host", "expected": "T1110"},
-    {"query": "powershell encoded command downloaded and executed a payload", "expected": "T1059"},
-    {"query": "ransomware encrypted files across the host and dropped a ransom note", "expected": "T1486"},
-    {"query": "scheduled task created to run a binary at logon for persistence", "expected": "T1053"},
-    {"query": "credential dumping observed reading lsass process memory", "expected": "T1003"},
-    {"query": "phishing email with malicious attachment opened by the user", "expected": "T1566"},
-    {"query": "lateral movement using remote desktop protocol rdp to another server", "expected": "T1021"},
-    {"query": "registry run key modified to autostart malware at boot", "expected": "T1547"},
-    {"query": "valid account login from an unusual foreign geolocation", "expected": "T1078"},
-    {"query": "code injected into explorer.exe via process injection", "expected": "T1055"},
-    {"query": "windows defender antivirus was disabled to impair defenses", "expected": "T1562"},
-    {"query": "data exfiltrated over dns tunneling to external server", "expected": "T1048"},
+SAMPLES: list[tuple[str, str]] = [
+    ("multiple failed SSH login attempts, brute force from single host", "T1110"),
+    ("powershell encoded command downloaded and executed a payload", "T1059"),
+    ("ransomware encrypted files across the host and dropped a ransom note", "T1486"),
+    ("scheduled task created to run a binary at logon for persistence", "T1053"),
+    ("credential dumping observed reading lsass process memory", "T1003"),
+    ("phishing email with malicious attachment opened by the user", "T1566"),
+    ("lateral movement using remote desktop protocol rdp to another server", "T1021"),
+    ("registry run key modified to autostart malware at boot", "T1547"),
+    ("valid account login from an unusual foreign geolocation", "T1078"),
+    ("code injected into explorer.exe via process injection", "T1055"),
+    ("windows defender antivirus was disabled to impair defenses", "T1562"),
+    ("data exfiltrated over dns tunneling to external server", "T1048"),
 ]
 
 
@@ -40,11 +40,11 @@ def _coverage(mapper, k: int) -> tuple[float, list[dict]]:
     """top-k 覆蓋率：mapper.map(query) 前 k 個是否含 expected。回傳 (覆蓋率, 逐筆明細)。"""
     detail = []
     hits = 0
-    for s in SAMPLES:
-        got = mapper.map(s["query"])[:k]
-        hit = s["expected"] in got
+    for query, expected in SAMPLES:
+        got = mapper.map(query)[:k]
+        hit = expected in got
         hits += hit
-        detail.append({"expected": s["expected"], "got": got, "hit": hit, "query": s["query"]})
+        detail.append({"expected": expected, "got": got, "hit": hit, "query": query})
     return hits / len(SAMPLES), detail
 
 
