@@ -1,7 +1,71 @@
 # 專案接手筆記（HANDOFF）
 
-> 最後更新：2026-05-26
+> 最後更新：2026-05-30
 > 下次回來請先讀這份，就知道從哪裡開始。
+
+---
+
+## ⏭️ 下次在 Spark 要做的事：W15-P1 §C 全本地消融補跑（最優先）
+
+> **背景**：W15-P1 個人進度報告（`docs/reports/2026-W15-P1-告警分流-個人進度報告.md`，**本機限定、
+> gitignore 不進版控**）§6.3 消融原本缺第三臂。**決策（2026-05-30）：把原「雲端零樣本 Claude Haiku」
+> 臂改為全本地兩臂**——理由是真實 SOC 工具把原始告警送外部雲端 API 本身是資料外洩／信任邊界疑慮，
+> 全本地更貼合自託管 SOC 設計，且離線、免金鑰。`scripts/eval/run_ablation.py` 已改好（見下「已就緒」）。
+
+### 要回答的兩個科學問題（兩臂各管一個）
+
+1. **同基底 `qwen2.5:3b`（未微調）** → 隔離「微調」單一變因（與 `soc-triage` 同為 Qwen2.5-3B，
+   差別僅 LoRA）。若它也坍縮成多數類 → 證明**微調沒把模型變更差**，坍縮源自資料。
+2. **大模型 `qwen2.5:32b`** → 離線「能力上界」代理。若連它在匿名特徵上也接近 63% 基率／低 macro-F1
+   → 確認是**資料集限制**（匿名特徵 + 類別不平衡）；若明顯較高 → 屬**微調／小模型容量**問題。
+
+### 已就緒（本機已改好並（待）推上）
+
+- `scripts/eval/run_ablation.py`：新增 `OllamaChat`（ChatClient，`complete`）+ 兩個本地零樣本臂
+  `zero_shot_local_base`（`qwen2.5:3b`）、`zero_shot_local_large`（`qwen2.5:32b`），**預設即跑、
+  無需金鑰**；雲端臂改為**可選**（設了 `ANTHROPIC_API_KEY` 才加）。模型名可用環境變數覆寫
+  （`OLLAMA_BASE_MODEL` / `OLLAMA_LARGE_MODEL` / `OLLAMA_MODEL`）。四臂共用 `GRADE_SYSTEM_PROMPT`
+  （明列 TP/BP/FP，使零樣本臂公平知道標籤空間）+ Pydantic 驗證 + 退回規則式。
+- 報告 §6.3 已預先改框架（命名／角色／診斷措辭改成本地兩臂、表格留兩列 `⬜ 待跑`）。
+
+### Spark 執行步驟（逐步照做）
+
+```bash
+# 0) 取得最新程式（本機改好的 run_ablation.py）。git pull 不需切帳號。
+cd <專案根>
+git pull            # 確認抓到 run_ablation.py 的本地零樣本臂改動
+
+# 1) 前置：留出集與微調模型須已在（§A 策展 + §B ollama create 的產物）
+ls data/triage/holdout.jsonl        # 1,000 筆；不在版控，須是 Spark 上 §A 既有產物
+ollama list | grep soc-triage       # §B 已建立的微調模型
+
+# 2) 起 ollama、拉兩個零樣本模型（首次 32b 約 ~20GB；Spark 128GB 統一記憶體可跑 q4）
+ollama serve &
+ollama pull qwen2.5:3b
+ollama pull qwen2.5:32b
+
+# 3) 跑完整消融（全本地、免金鑰）。存純文字 + 之後整理成 md/json 存檔。
+uv run --group eval python scripts/eval/run_ablation.py | tee results/W15-P1-C-full-ablation.txt
+#   預期輸出：=== alert_type === 後，每臂一行 acc=/macroF1= + per_class_f1 + confusion；
+#   severity 會印「跳過」（GUIDE 無嚴重度真值）。
+```
+
+### 跑完後（回填與存檔）
+
+1. 把 `rule_based` / `zero_shot_local_base` / `zero_shot_local_large` / `finetuned_local` 四臂的
+   acc、macro-F1、混淆矩陣整理成 `results/W15-P1-C-full-ablation.md`（＋ `.json`），格式仿
+   既有的 `results/W15-P1-C-partial-ablation.md`。**這些 results/ 檔有進版控**。
+2. **依兩個診斷問題寫結論**：base 是否也坍縮（微調有無傷害）、32b 是否仍接近基率（資料限制 vs 容量）。
+3. `git add results/W15-P1-C-full-ablation.*` → commit → **push（須 `gh auth switch --user JoeW00`）**。
+4. 回**本機** Mac：`git pull` 取得 results；把兩列數字 + 結論貼回報告 §6.3（報告是本機限定檔，
+   不在 Spark）。報告 §6.3 的 `⬜ 待跑` 兩列、§1 更新說明、§9、§10、§11 的「唯一未完項」屆時改成已完成。
+
+### 可選加分（非必需）
+
+- **雲端臂對照**：在 Spark `export ANTHROPIC_API_KEY=...` 後重跑同指令（會多出 `zero_shot_cloud`），
+  與本地大模型對比。注意：會把告警送至外部 Anthropic API。
+- **類別平衡重訓**：對訓練集重採樣成 TP/BP/FP 近等量再微調（《執行指南》§A.3），看 `true_positive`
+  召回是否改善（需再用一次 Spark GPU）。
 
 ---
 

@@ -1,13 +1,24 @@
-"""微調本地 vs 雲端零樣本 vs 規則式 的消融評估（補報告 §6.3）。
+"""消融評估（補報告 §6.3）：規則式 vs 本地零樣本(同基底/大模型) vs 微調本地。
 
-需在 DGX 上跑：ollama serve（+ soc-triage 模型）與 ANTHROPIC_API_KEY（雲端臂）。
+**預設全本地、離線**：需 ollama serve 並備妥三個模型——`soc-triage`（§B 微調產物）、
+`qwen2.5:3b`（同基底未微調）、`qwen2.5:32b`（本地能力上界）。所有臂走相同的 GRADE
+prompt + Pydantic 驗證 + 退回規則式，確保公平比較。告警**不送出企業邊界**，符合自託管
+SOC 設計。雲端臂為**可選**：設了 `ANTHROPIC_API_KEY` 才額外加入（會把告警送至外部 API）。
 本腳本為手動評估，絕不進 pytest。
 
-用法：
+用法（Spark，全本地）：
     ollama serve &
-    export ANTHROPIC_API_KEY=...
+    ollama pull qwen2.5:3b
+    ollama pull qwen2.5:32b
+    # soc-triage 已由《執行指南》§B 的 `ollama create` 建立
     uv run --group eval --group llm python scripts/eval/run_ablation.py \
         | tee out/ablation_results.txt
+
+可選加雲端臂（資料會送至 Anthropic）：
+    export ANTHROPIC_API_KEY=...   # 其餘同上
+
+模型名可用環境變數覆寫：OLLAMA_BASE_MODEL（預設 qwen2.5:3b）、
+OLLAMA_LARGE_MODEL（預設 qwen2.5:32b）、OLLAMA_MODEL（微調模型，預設 soc-triage）。
 """
 
 from __future__ import annotations
@@ -33,7 +44,9 @@ from soc_agent.classifiers.ollama import OllamaClassifier  # noqa: E402
 from soc_agent.classifiers.prompts import build_triage_prompt, parse_classification  # noqa: E402
 
 CLOUD_MODEL = "claude-haiku-4-5-20251001"
-OLLAMA_MODEL = "soc-triage"
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "soc-triage")  # 微調產物
+LOCAL_BASE_MODEL = os.environ.get("OLLAMA_BASE_MODEL", "qwen2.5:3b")  # 同基底未微調
+LOCAL_LARGE_MODEL = os.environ.get("OLLAMA_LARGE_MODEL", "qwen2.5:32b")  # 本地能力上界
 HOLDOUT = "data/triage/holdout.jsonl"
 
 
@@ -59,6 +72,22 @@ class AnthropicChat:
             messages=[{"role": "user", "content": prompt}],
         )
         return msg.content[0].text
+
+
+class OllamaChat:
+    """官方 ollama client → ChatClient Protocol（complete → text）。供本地零樣本臂。
+
+    與 OllamaAdapter（generate）不同：實作 ChatClient（complete），讓本地基底/大模型
+    可接上 GradeZeroShotClassifier，與雲端臂走完全相同的 GRADE prompt + 驗證路徑。
+    temperature=0 確保確定性。
+    """
+
+    def __init__(self, model: str) -> None:
+        self._m = model
+
+    def complete(self, *, system: str, prompt: str) -> str:
+        r = ollama.generate(model=self._m, system=system, prompt=prompt, options={"temperature": 0})
+        return r["response"]
 
 
 # eval-only 的 task-specific system prompt：明列 IncidentGrade 三類 + 簡短定義，讓雲端
@@ -90,23 +119,32 @@ class GradeZeroShotClassifier:
 
 
 def main() -> None:
-    import anthropic
-
     records = load_dataset(HOLDOUT)
     if not records:
         raise SystemExit(
             f"{HOLDOUT} 為空：curate_guide.py 可能沒對到 GUIDE 欄位（檢查 GRADE_KEYS/header）。"
         )
-    client = anthropic.Anthropic()
+    # 預設全本地、離線，告警不送出企業邊界。四臂皆走相同 GRADE prompt + 驗證 + 退路，確保公平。
     classifiers: dict[str, Classifier] = {
-        "rule_based": RuleBasedClassifier(),
-        # 核心對照：知道 IncidentGrade 標籤空間的公平零樣本臂。
-        "zero_shot_cloud": GradeZeroShotClassifier(AnthropicChat(client, CLOUD_MODEL)),
+        "rule_based": RuleBasedClassifier(),  # 離線下限基準
+        # 同基底未微調：隔離「微調」這唯一變因（與 finetuned_local 同為 Qwen2.5-3B）。
+        "zero_shot_local_base": GradeZeroShotClassifier(OllamaChat(LOCAL_BASE_MODEL)),
+        # 本地大模型：離線「能力上界」代理，回答「資料集限制 vs 容量問題」。
+        "zero_shot_local_large": GradeZeroShotClassifier(OllamaChat(LOCAL_LARGE_MODEL)),
+        # 本子系統核心交付：LoRA 微調後的本地模型。
         "finetuned_local": OllamaClassifier(OllamaAdapter(), model=OLLAMA_MODEL),
     }
-    # 可選診斷：用共享通用 prompt 的零樣本（不知道標籤空間），凸顯「微調教會標籤空間」的效果。
-    if os.environ.get("ABLATION_INCLUDE_GENERIC_ZS"):
-        classifiers["zero_shot_generic"] = ZeroShotClassifier(AnthropicChat(client, CLOUD_MODEL))
+    # 可選：設了 ANTHROPIC_API_KEY 才加雲端臂（注意：會把告警送至外部 Anthropic API）。
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        import anthropic
+
+        client = anthropic.Anthropic()
+        classifiers["zero_shot_cloud"] = GradeZeroShotClassifier(AnthropicChat(client, CLOUD_MODEL))
+        # 可選診斷：用共享通用 prompt 的零樣本（不知道標籤空間），凸顯「微調教會標籤空間」的效果。
+        if os.environ.get("ABLATION_INCLUDE_GENERIC_ZS"):
+            classifiers["zero_shot_generic"] = ZeroShotClassifier(
+                AnthropicChat(client, CLOUD_MODEL)
+            )
     # severity 只在留出集每筆都有 expected.severity 時才評估（GUIDE 通常無嚴重度真值）。
     targets = ["alert_type"]
     if records and all("severity" in r["expected"] for r in records):
