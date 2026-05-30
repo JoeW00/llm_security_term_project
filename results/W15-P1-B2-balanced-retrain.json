@@ -1,0 +1,58 @@
+{
+  "target": "alert_type",
+  "n": 1000,
+  "arms": {
+    "finetuned_original": {
+      "accuracy": 0.635,
+      "macro_f1": 0.2727,
+      "per_class_f1": {
+        "benign_positive": 0.7765,
+        "false_positive": 0.0415,
+        "true_positive": 0.0
+      },
+      "confusion": {
+        "benign_positive": {
+          "benign_positive": 629,
+          "false_positive": 3,
+          "true_positive": 0
+        },
+        "false_positive": {
+          "benign_positive": 271,
+          "false_positive": 6,
+          "true_positive": 0
+        },
+        "true_positive": {
+          "benign_positive": 88,
+          "false_positive": 3,
+          "true_positive": 0
+        }
+      }
+    },
+    "finetuned_balanced": {
+      "accuracy": 0.423,
+      "macro_f1": 0.3815,
+      "per_class_f1": {
+        "benign_positive": 0.5182,
+        "false_positive": 0.3252,
+        "true_positive": 0.3012
+      },
+      "confusion": {
+        "benign_positive": {
+          "benign_positive": 271,
+          "false_positive": 273,
+          "true_positive": 88
+        },
+        "false_positive": {
+          "benign_positive": 123,
+          "false_positive": 113,
+          "true_positive": 41
+        },
+        "true_positive": {
+          "benign_positive": 20,
+          "false_positive": 32,
+          "true_positive": 39
+        }
+      }
+    }
+  }
+}

@@ -11,10 +11,16 @@ LoRA 綽綽有餘，改用純 transformers + peft + trl，省去量化工具鏈�
 
 用法（在有 CUDA torch 的環境裡，非必要走 uv）：python scripts/finetune/train_lora.py
 產物：out/merged-triage/（已合併 LoRA 的 HF 模型，供轉 GGUF）
+
+路徑可用環境變數覆寫（不覆蓋既有產物，供平衡重訓等變體並存）：
+    SFT_PATH=data/triage/sft_balanced.jsonl \
+    ADAPTER_DIR=out/lora-triage-balanced MERGED_DIR=out/merged-triage-balanced \
+    python scripts/finetune/train_lora.py
 """
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import torch
@@ -25,9 +31,9 @@ from trl import SFTConfig, SFTTrainer
 
 # 非 gated，免 HF 授權。要改用 Llama-3.2-3B-Instruct 須先 `huggingface-cli login`。
 BASE = "Qwen/Qwen2.5-3B-Instruct"
-SFT = "data/triage/sft.jsonl"
-ADAPTER_DIR = "out/lora-triage"
-MERGED_DIR = "out/merged-triage"
+SFT = os.environ.get("SFT_PATH", "data/triage/sft.jsonl")
+ADAPTER_DIR = os.environ.get("ADAPTER_DIR", "out/lora-triage")
+MERGED_DIR = os.environ.get("MERGED_DIR", "out/merged-triage")
 
 
 def main() -> None:
