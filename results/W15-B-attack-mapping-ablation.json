@@ -1,0 +1,234 @@
+{
+  "n_samples": 12,
+  "n_techniques_indexed": 697,
+  "arms": {
+    "keyword": {
+      "top1_coverage": 0.25,
+      "top3_coverage": 0.25
+    },
+    "retrieval_bm25": {
+      "top1_coverage": 0.6666666666666666,
+      "top3_coverage": 0.75
+    }
+  },
+  "retrieval_detail": [
+    {
+      "expected": "T1110",
+      "got": [
+        "T1110",
+        "T1021",
+        "T1552"
+      ],
+      "hit": true,
+      "query": "multiple failed SSH login attempts, brute force from single host"
+    },
+    {
+      "expected": "T1059",
+      "got": [
+        "T1027",
+        "T1059",
+        "T1546"
+      ],
+      "hit": true,
+      "query": "powershell encoded command downloaded and executed a payload"
+    },
+    {
+      "expected": "T1486",
+      "got": [
+        "T1486",
+        "T1679",
+        "T1070"
+      ],
+      "hit": true,
+      "query": "ransomware encrypted files across the host and dropped a ransom note"
+    },
+    {
+      "expected": "T1053",
+      "got": [
+        "T1053",
+        "T1037",
+        "T1547"
+      ],
+      "hit": true,
+      "query": "scheduled task created to run a binary at logon for persistence"
+    },
+    {
+      "expected": "T1003",
+      "got": [
+        "T1003",
+        "T1555",
+        "T1547"
+      ],
+      "hit": true,
+      "query": "credential dumping observed reading lsass process memory"
+    },
+    {
+      "expected": "T1566",
+      "got": [
+        "T1566",
+        "T1204",
+        "T1036"
+      ],
+      "hit": true,
+      "query": "phishing email with malicious attachment opened by the user"
+    },
+    {
+      "expected": "T1021",
+      "got": [
+        "T1021",
+        "T1563",
+        "T1570"
+      ],
+      "hit": true,
+      "query": "lateral movement using remote desktop protocol rdp to another server"
+    },
+    {
+      "expected": "T1547",
+      "got": [
+        "T1547",
+        "T1546",
+        "T1037"
+      ],
+      "hit": true,
+      "query": "registry run key modified to autostart malware at boot"
+    },
+    {
+      "expected": "T1078",
+      "got": [
+        "T1614",
+        "T1110",
+        "T1555"
+      ],
+      "hit": false,
+      "query": "valid account login from an unusual foreign geolocation"
+    },
+    {
+      "expected": "T1055",
+      "got": [
+        "T1055",
+        "T1218",
+        "T1134"
+      ],
+      "hit": true,
+      "query": "code injected into explorer.exe via process injection"
+    },
+    {
+      "expected": "T1562",
+      "got": [
+        "T1685",
+        "T1546",
+        "T1556"
+      ],
+      "hit": false,
+      "query": "windows defender antivirus was disabled to impair defenses"
+    },
+    {
+      "expected": "T1048",
+      "got": [
+        "T1071",
+        "T1572",
+        "T1583"
+      ],
+      "hit": false,
+      "query": "data exfiltrated over dns tunneling to external server"
+    }
+  ],
+  "keyword_detail": [
+    {
+      "expected": "T1110",
+      "got": [
+        "T1110"
+      ],
+      "hit": true,
+      "query": "multiple failed SSH login attempts, brute force from single host"
+    },
+    {
+      "expected": "T1059",
+      "got": [
+        "T1059"
+      ],
+      "hit": true,
+      "query": "powershell encoded command downloaded and executed a payload"
+    },
+    {
+      "expected": "T1486",
+      "got": [
+        "T1204"
+      ],
+      "hit": false,
+      "query": "ransomware encrypted files across the host and dropped a ransom note"
+    },
+    {
+      "expected": "T1053",
+      "got": [
+        "T1078"
+      ],
+      "hit": false,
+      "query": "scheduled task created to run a binary at logon for persistence"
+    },
+    {
+      "expected": "T1003",
+      "got": [
+        "T1078"
+      ],
+      "hit": false,
+      "query": "credential dumping observed reading lsass process memory"
+    },
+    {
+      "expected": "T1566",
+      "got": [
+        "T1078"
+      ],
+      "hit": false,
+      "query": "phishing email with malicious attachment opened by the user"
+    },
+    {
+      "expected": "T1021",
+      "got": [
+        "T1078"
+      ],
+      "hit": false,
+      "query": "lateral movement using remote desktop protocol rdp to another server"
+    },
+    {
+      "expected": "T1547",
+      "got": [
+        "T1204"
+      ],
+      "hit": false,
+      "query": "registry run key modified to autostart malware at boot"
+    },
+    {
+      "expected": "T1078",
+      "got": [
+        "T1078"
+      ],
+      "hit": true,
+      "query": "valid account login from an unusual foreign geolocation"
+    },
+    {
+      "expected": "T1055",
+      "got": [
+        "T1078"
+      ],
+      "hit": false,
+      "query": "code injected into explorer.exe via process injection"
+    },
+    {
+      "expected": "T1562",
+      "got": [
+        "T1204"
+      ],
+      "hit": false,
+      "query": "windows defender antivirus was disabled to impair defenses"
+    },
+    {
+      "expected": "T1048",
+      "got": [
+        "T1078"
+      ],
+      "hit": false,
+      "query": "data exfiltrated over dns tunneling to external server"
+    }
+  ]
+}
