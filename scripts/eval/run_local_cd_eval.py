@@ -149,7 +149,7 @@ def _write_c_md(p: dict) -> None:
         f"| 確定性預設（rule-based） | {dv['accuracy']:.3f} | {dv['precision']:.3f} | {dv['recall']:.3f} |",
         f"| 地端 LLM（{p['model']}） | **{lv['accuracy']:.3f}** | **{lv['precision']:.3f}** | **{lv['recall']:.3f}** |",
         "",
-        "> 確定性研判僅依 severity（high → 一律 true_positive），故對良性高嚴重度告警全jud 錯；",
+        "> 確定性研判僅依 severity（high → 一律 true_positive），故對良性高嚴重度告警全判錯；",
         "> 地端 LLM 讀告警內容後能區分真攻擊與良性誤報。",
         "",
         "## 反思迴圈收斂",
