@@ -12,8 +12,8 @@ class StubClient:
         self._raises = raises
         self.last_call = None
 
-    def generate(self, *, model, system, prompt):
-        self.last_call = {"model": model, "system": system, "prompt": prompt}
+    def generate(self, *, model, system, prompt, options=None):
+        self.last_call = {"model": model, "system": system, "prompt": prompt, "options": options}
         if self._raises:
             raise RuntimeError("ollama down")
         return {"response": self._response}
@@ -25,6 +25,8 @@ def test_complete_returns_text():
     out = llm.complete(system="sys", prompt="usr")
     assert out == '{"verdict": "true_positive"}'
     assert client.last_call["model"] == "qwen2.5:7b"
+    # 可重現：greedy 解碼（temperature=0）
+    assert client.last_call["options"]["temperature"] == 0
 
 
 def test_failure_normalized_to_llm_client_error():

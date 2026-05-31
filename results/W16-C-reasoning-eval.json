@@ -19,7 +19,7 @@
       "pct_converged": 1.0
     },
     "local_llm": {
-      "mean_iterations": 1.3333333333333333,
+      "mean_iterations": 2.1666666666666665,
       "pct_converged": 1.0
     },
     "cap": 3
@@ -30,8 +30,8 @@
     "safety": 5
   },
   "latency_seconds_mean": {
-    "deterministic": 0.003749236163760846,
-    "local_llm": 7.507727055335029
+    "deterministic": 0.0035556874984952933,
+    "local_llm": 22.13831356249769
   },
   "verdict_pairs": {
     "deterministic": [
