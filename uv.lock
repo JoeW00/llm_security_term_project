@@ -1460,6 +1460,9 @@ dev = [
 eval = [
     { name = "ollama" },
 ]
+intel = [
+    { name = "httpx" },
+]
 llm = [
     { name = "anthropic" },
 ]
@@ -1477,6 +1480,7 @@ dev = [
     { name = "ruff", specifier = ">=0.6" },
 ]
 eval = [{ name = "ollama", specifier = ">=0.3" }]
+intel = [{ name = "httpx", specifier = ">=0.27" }]
 llm = [{ name = "anthropic", specifier = ">=0.40" }]
 
 [[package]]
