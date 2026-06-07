@@ -34,7 +34,7 @@ flowchart LR
 
 文字版：`ingest → triage → [route] → enrich → investigate → attack_mapping → playbook → [critique 迴圈] → human_approval → report`
 
-- **`[route]`**：低風險告警直接旁路到 `human_approval`，不浪費後續算力（`routing.py`）。
+- **`[route]`**：低風險告警直接旁路到 `human_approval`，不浪費後續算力（`soc_agent/routing.py`）。
 - **`[critique 迴圈]`**：劇本不合格就把缺點回饋給 `playbook` 重生，由 `MAX_CRITIQUE_ITERATIONS=3` 保證終止。
 
 ---
@@ -201,8 +201,7 @@ uv run pytest -q            # 測試
 |---|---|
 | [W16 團隊整合報告](docs/reports/2026-W16-第34組-團隊整合報告.md) | 最終報告：系統設計、四子系統、資安評估、限制與結論 |
 | [白話版專案總覽](docs/reports/白話版-專案總覽-小學生也看得懂.md) | 不懂資安也看得懂的整體介紹 |
-| `docs/reports/2026-W14/W15-P1-*.md` | 個人進度報告（告警分流軸） |
-| `docs/superpowers/specs/`、`plans/` | 四子系統的設計 spec 與實作計畫 |
+| `docs/superpowers/specs/`、`docs/superpowers/plans/` | 四子系統的設計 spec 與實作計畫 |
 | `results/` | 全部評估的原始數據（Markdown + JSON） |
 
 ---
