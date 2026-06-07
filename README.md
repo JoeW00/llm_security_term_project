@@ -4,7 +4,7 @@
 >
 > 國立清華大學 114-2「LLM 資安系統」期末專題（第 34 組）。
 > 程式碼：**<https://github.com/JoeW00/llm_security_term_project>**
-> 團隊整合報告：[`docs/reports/2026-W16-第34組-團隊整合報告.md`](docs/reports/2026-W16-第34組-團隊整合報告.md)
+> 團隊整合報告以 docx 隨課程提交（報告引用的評估數據在 `results/`、證據截圖在 `docs/reports/assets/`）。
 
 ---
 
@@ -127,7 +127,7 @@ build_graph(
 | **C** | `investigate` | LLM 讀告警內容判真偽（地端 qwen2.5:7b，temperature=0） | verdict 準確率 **0.500 → 0.833**、precision 1.000（6 筆地端評估） |
 | **D** | `playbook` / `critique` / `human_approval` | LLM 生成 NIST 三階段劇本 ＋ rubric 評分反思迴圈 ＋ 核准閘門 | 收斂 100% 在 cap=3 內；注入被操控率 0/3（確定性）vs 3/3（LLM）→ 凸顯人工閘門必要性 |
 
-> 所有數字皆為**小樣本**、已標註樣本數，不誇大；完整評估數據在 `results/`、執行證據截圖在 `docs/reports/assets/`、彙整論述見 [W16 團隊整合報告](docs/reports/2026-W16-第34組-團隊整合報告.md)。
+> 所有數字皆為**小樣本**、已標註樣本數，不誇大；完整評估數據在 `results/`、執行證據截圖在 `docs/reports/assets/`、彙整論述見隨課程提交的 W16 團隊整合報告（docx）。
 
 ---
 
@@ -152,7 +152,7 @@ scripts/eval/         # 消融與評估腳本（run_ablation / run_injection / r
 demo/                 # Streamlit Demo UI（controller 不依賴 streamlit、可單元測試）
 tests/                # 167 個測試（全離線、確定性）
 results/              # 跑出的真實評估數字（消融、注入、研判、ATT&CK 對應、情資 live 紀錄）
-docs/reports/         # W16 團隊整合報告 + 個人進度報告 + 證據截圖（assets/）
+docs/reports/assets/  # 報告證據截圖（報告本文以 docx 隨課程提交，未入庫）
 docs/superpowers/     # 設計 spec 與實作計畫（四子系統）
 ```
 
@@ -199,9 +199,9 @@ uv run pytest -q            # 測試
 
 | 文件 | 說明 |
 |---|---|
-| [W16 團隊整合報告](docs/reports/2026-W16-第34組-團隊整合報告.md) | 最終報告：系統設計、四子系統、資安評估、限制與結論 |
-| [白話版專案總覽](docs/reports/白話版-專案總覽-小學生也看得懂.md) | 不懂資安也看得懂的整體介紹 |
+| W16 團隊整合報告（docx，隨課程提交） | 最終報告：系統設計、四子系統、資安評估、限制與結論 |
 | `docs/superpowers/specs/`、`docs/superpowers/plans/` | 四子系統的設計 spec 與實作計畫 |
+| `docs/reports/assets/` | 報告引用的證據截圖（評估輸出、Demo UI、CLI 端到端） |
 | `results/` | 全部評估的原始數據（Markdown + JSON） |
 
 ---
