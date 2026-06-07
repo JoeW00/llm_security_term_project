@@ -24,3 +24,5 @@ data/triage/stats.json
 out/
 *.gguf
 _evidence/
+.claude
+HANDOFF.md
